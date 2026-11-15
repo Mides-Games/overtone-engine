@@ -20,6 +20,51 @@ version is `v1.0.0-stable` (2026-10-28).
 
 ---
 
+## Unreleased — 2026-11-15 · Beat This!'s session options change nothing (roadmap 30.1), and two more line detectors dropped (30.3)
+
+No engine change.
+
+### Measured
+
+**30.1**: Beat This! on this PC (Ryzen 5 4600G, 12 logical CPUs, ONNX Runtime 1.31, CPU
+provider), 14 songs (6 of bench/audio, 8 of the local library; 38 minutes of audio), the
+songs one at a time and two at once (two sessions on two threads, as the server's
+`--jobs 2`). Every option gave the engine's beats exactly.
+
+| options | one at a time | two at once |
+|---|---|---|
+| the engine's (default threads, graph `ENABLE_ALL`, memory pattern off) | 135.9 s | 130.6 s |
+| 3 intra-op threads | 137.1 s | 134.1 s |
+| 6 intra-op threads | 150.1 s | 144.0 s |
+| graph `ENABLE_BASIC` | 138.1 s | 139.6 s |
+| graph `ENABLE_EXTENDED` | 121.9 s | 102.8 s |
+| no CPU memory arena | 173.2 s | 157.0 s |
+
+That table ran beside other work. `ENABLE_EXTENDED` against the engine's, again with nothing
+else running, interleaved over three rounds: medians 109.3 against 108.1 s one at a time,
+102.7 against 106.0 s two at once, inside the rounds' own spread (102.7-122.0 s). Two songs
+at once take about as long as one after the other: the network already uses every core,
+so `--jobs 2` buys Beat This! nothing.
+
+**30.3**, on `bench/line_audit.py`'s seed-61 sample (87 maps), against the phase rule kept
+there (0.4 % of correct lines flagged, 17.2 % of 15 ms shifts found, 42.9 % precision):
+
+- a line judged against its two neighbours' phase instead of the map's: never better
+  than the map's at any threshold of the sweep;
+- a line too short for its span (under 16 attacks) judged by its anchor, the distance
+  from its offset to the nearest strong attack against the map's median one: 3.4-7.5 % of
+  correct lines flagged, precision 5.6-9.8 %.
+
+### Rejected / tried and dropped
+
+- **Tuning Beat This!'s session** (30.1): no option is faster beyond the run-to-run spread;
+  the defaults stay.
+- **Neighbours and anchors for 30.3**: a correct line's anchor attack sits too far and too
+  variably from its offset to judge a short line by. The phase rule stays the best
+  detector measured, and it stays a measurement.
+
+---
+
 ## Unreleased — 2026-11-14 · A wrong line in someone else's map, measured on this PC (roadmap 30.3, 30.4)
 
 ### Changed

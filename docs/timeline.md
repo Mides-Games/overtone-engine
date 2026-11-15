@@ -20,6 +20,44 @@ version is `v1.0.0-stable` (2026-10-28).
 
 ---
 
+## Unreleased — 2026-11-15 · Where the variable songs are lost: drawn curves, and one grid over a real change (roadmap 30.5, 30.6)
+
+No engine change. The same 09ea196 baselines as 28.7 (anime-variable 068954 / 83cd59,
+bands 7e67f5 / 6147a7, dev and held out together), each map's mapped red lines against
+the engine's.
+
+### Measured
+
+Why a map misses rankable (`bench/rankable.py`'s cause):
+
+| stage | maps missed | octave | tempo | lines | offset | engine lines per mapped line (median) |
+|---|---|---|---|---|---|---|
+| anime-single | 662 | 11 % | 12 % | 5 % | 68 % | 1.0 |
+| anime-variable | 1 668 | 26 % | 59 % | 12 % | 3 % | 0.25 |
+| bands-variable | 375 | 39 % | 35 % | 9 % | 15 % | 0.64 |
+
+Most of a variable map's red lines are not tempo changes but a drawn curve: the new
+section's median length is 0.3-2.3 s for every size of change. 856 of anime-variable's
+2 295 maps (37 %) and 177 of bands' 908 (19 %) have most of their lines under 4 s. No grid
+follows those to 10 ms.
+
+The real changes (both sides 8 s or more, 2 % BPM or more) are few and large: 286 in
+anime-variable (median 24.8 %) and 140 in bands (42.9 %). The engine has the new tempo
+within 4 s and 3 % at 48 % and 42 % of them, by path:
+
+| stage | path | real changes | missed |
+|---|---|---|---|
+| anime-variable | precision (one Rust grid) | 116 | 102 (88 %) |
+| anime-variable | legacy | 170 | 47 (28 %) |
+| bands-variable | precision | 57 | 43 (75 %) |
+| bands-variable | legacy | 83 | 38 (46 %) |
+
+Of the 149 + 81 missed, the engine kept one line at another tempo in 93 + 30, kept the old
+tempo in 30 + 27, read the new one at another octave in 15 + 16, and wrote something else
+in 11 + 8.
+
+---
+
 ## Unreleased — 2026-11-15 · Mappers' round BPMs are not what the engine misses (roadmap 28.7)
 
 No engine change. The server's runs of 09ea196 without an experiment (the same baselines

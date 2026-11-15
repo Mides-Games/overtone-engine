@@ -20,6 +20,33 @@ version is `v1.0.0-stable` (2026-10-28).
 
 ---
 
+## Unreleased — 2026-11-14 · Beat This! in int8 is no faster and moves beats (roadmap 27.9)
+
+No engine change. The shipped model (`beat_this_final0.onnx`, fp32, 83.2 MB) quantized
+by ONNX Runtime 1.31's `quantize_dynamic` (int8 weights, 23.0 MB), both run by the
+engine's own `_beat_this_beats` on this PC (Ryzen 5 4600G, CPU provider, the median of
+three runs per song), the int8 beats matched to the fp32 ones.
+
+### Measured
+
+| audio | fp32 beats | int8 beats | fp32 beats with an int8 beat within 5 ms | largest matched gap | network time, fp32 → int8 |
+|---|---|---|---|---|---|
+| bench/audio, 37 synthetic songs | 6 125 | 6 064 | 96.4 % | 40 ms | 158.3 → 167.4 s |
+| 6 songs of the local osu! library | 3 421 | 3 426 | 95.2 % | 40 ms | 62.9 → 68.2 s |
+
+Within 10 ms is the same share as within 5 ms: a beat that moves moves by one frame (20 ms)
+or two. The library run was meant to cover 24 songs; the process ended on its own after
+six, and those six already agree with the synthetic set.
+
+### Rejected / tried and dropped
+
+- **An int8 Beat This!** (27.9): 5-9 % slower on this CPU, not faster, and one beat in
+  20-30 moves by a frame, past the 10 ms a rankable map allows. The fp32 model stays. The
+  other half of 27.9, the smaller `small0` checkpoint, needs a download that has not been
+  made.
+
+---
+
 ## Unreleased — 2026-11-14 · The percussive input loses held-out songs (roadmap 27.13, first half)
 
 No engine change. The server's six stage runs with `--experiment percussive` (the

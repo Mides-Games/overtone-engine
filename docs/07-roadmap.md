@@ -1344,7 +1344,7 @@ is the owner's ear (a tidy 199 for 198.89 is the same tempo); octave is the firs
 | 27.6 | **built, measured, off** — `DBN_TRACKER` (#129) moves the beats of 88 bands / 131 anime fallback maps, 0 tempo ok fixed or broken (2026-11-06) |
 | 27.7 | **built, measured, off** — `lines-on-downbeats`: line_on_bar +1.6 / +0.3 points, tempo ok unchanged, more double ticks on anime (2026-11-06) |
 | 27.8 | **built, measured on cached analyses, off** — `TEMPO_JUDGE` (`python/overtone/tempo_judge.py`, weights in `assets/models/tempo_judge.npz`): a numpy MLP over onset-envelope features, not the CNN below, trained by `bench/tempo_model.py` on 2,698 ranked songs. Held out (1,102 songs) it picks the mapped octave from a x1/2 / x1 / x2 reading in 95.8 / 91.3 / 95.2 % vs 89.3 % for the fixed 120–240 range; on the stages' cached analyses at margin 10, held-out tempo ok anime-single 92.1 → 93.2, anime-variable 25.1 → 25.4, bands 71.3 → 71.3 (2026-11-07). Not yet measured end to end |
-| 27.9 | not started |
+| 27.9 | **int8 rejected** (2026-11-14) — no faster on this CPU (158 → 167 s over 37 songs) and 3.6-4.8 % of beats move a frame; `small0` not tried (needs a download) |
 
 27.1 **Count the octave jumps on the engine's lines.** Re-run anime-variable and bands dev
      with the `lines` field; count songs whose engine lines step by ×2 / ×0.5 between

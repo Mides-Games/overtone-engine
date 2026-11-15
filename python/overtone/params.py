@@ -1401,3 +1401,23 @@ SELF_CHECK_OCTAVE_MARGIN = 0.0
 #: The linear trend of the distance across the whole red line, ms: what a BPM
 #: a few thousandths out leaves behind.
 SELF_CHECK_DRIFT_MS = 5.0
+
+#: One Rust grid over a real tempo change (roadmap 30.5): on the server's runs of
+#: 09ea196 the precision path missed 88 % of anime-variable's real changes and 75 %
+#: of bands' (both sides 8 s or more, median 25-43 % BPM), mostly as one line at a
+#: tempo between the two. With HIDDEN_CHANGE_CHECK, a single grid is refused (and
+#: the app's multi-tempo path takes the song) when, over HIDDEN_CHANGE_RUNS windows
+#: in a row, another tempo's phase coherence beats the grid's HIDDEN_CHANGE_FACTOR
+#: times and reaches HIDDEN_CHANGE_MIN. Windows of HIDDEN_CHANGE_WINDOW_MS every
+#: HIDDEN_CHANGE_HOP_MS, the stronger half of the attacks, at least
+#: HIDDEN_CHANGE_MIN_ATTACKS of them; other tempos from 0.6x to 1.6x, never within
+#: 3 % of 1, 1/2, 2, 2/3 or 3/2 of the grid's. Chosen on the local library (17 songs
+#: with a real change, 150 steady, 2026-11-15): 7 of 17 flagged, 0 of 150. Off
+#: until the server measures it.
+HIDDEN_CHANGE_CHECK = False
+HIDDEN_CHANGE_FACTOR = 4.0
+HIDDEN_CHANGE_RUNS = 6
+HIDDEN_CHANGE_MIN = 0.2
+HIDDEN_CHANGE_WINDOW_MS = 8000.0
+HIDDEN_CHANGE_HOP_MS = 2000.0
+HIDDEN_CHANGE_MIN_ATTACKS = 12

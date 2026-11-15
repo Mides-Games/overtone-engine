@@ -816,6 +816,14 @@
    "where": "python-only",
    "why": "the osu! conventions run after either engine (overtone_rust.analyze applies them to the Rust result), so the Rust engine itself does not carry them"
   },
+  "HIDDEN_CHANGE_CHECK": {
+   "where": "python-only",
+   "why": "the check reads the Rust core's own result in overtone_rust.analyze and sends a refused song to v3, as the app does for any refusal; the Rust engine itself does not carry it"
+  },
+  "_hidden_tempo_change": {
+   "where": "python-only",
+   "why": "the check reads the Rust core's own result in overtone_rust.analyze and sends a refused song to v3, as the app does for any refusal; the Rust engine itself does not carry it"
+  },
   "PHASE_CHECK": {
    "where": "python-only",
    "why": "the osu! conventions run after either engine (overtone_rust.analyze applies them to the Rust result), so the Rust engine itself does not carry them"

@@ -110,6 +110,7 @@ EXPERIMENTS = {
     "local-step-octave-up": {"LOCAL_STEP_JUMPS": True, "LOCAL_OCTAVE_UP": True},
     "octave-cap-off": {"OCTAVE_CAP": False},
     "phase-check": {"PHASE_CHECK": True},
+    "hidden-change": {"HIDDEN_CHANGE_CHECK": True},
     "beat-this-tracker": {"BEAT_THIS_TRACKER": True},
     "dbn-tracker": {"DBN_TRACKER": True},
     "tempo-judge": {"TEMPO_JUDGE": True},

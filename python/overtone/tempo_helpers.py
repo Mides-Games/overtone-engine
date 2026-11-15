@@ -380,3 +380,50 @@ def _stability(local: np.ndarray) -> float:
     med = float(np.median(local))
     mad = float(np.median(np.abs(local - med)))
     return float(max(0.0, min(1.0, 1.0 - (mad / max(med * 0.03, 0.4)))))
+
+
+def _hidden_tempo_change(attack_times_s, attack_weights, bpm: float, duration_s: float) -> dict | None:
+    """Whether one grid at ``bpm`` hides a real tempo change (HIDDEN_CHANGE_CHECK,
+    roadmap 30.5): the first run of HIDDEN_CHANGE_RUNS windows in a row where another
+    tempo's phase coherence beats the grid's HIDDEN_CHANGE_FACTOR times, as
+    ``{"start_s", "end_s", "ratio"}`` (``ratio``: that tempo over the grid's, in the
+    run's strongest window), or None. A window needs HIDDEN_CHANGE_MIN_ATTACKS of the
+    stronger half of the attacks; the other tempos are 0.6x to 1.6x of the grid's,
+    never within 3 % of 1, 1/2, 2, 2/3 or 3/2 of it, so an octave or a triplet feel
+    of the same grid does not count."""
+    times = np.asarray(attack_times_s, dtype=float) * 1000.0
+    weights = np.asarray(attack_weights, dtype=float)
+    if times.size == 0 or not bpm or bpm <= 0:
+        return None
+    strong = weights >= np.quantile(weights, 0.5)
+    times, weights = times[strong], weights[strong]
+    beat = 60000.0 / float(bpm)
+    ratios = np.exp(np.linspace(np.log(0.6), np.log(1.6), 241))
+    banned = np.array([1.0, 0.5, 2.0, 2.0 / 3.0, 1.5])
+    ratios = ratios[np.all(np.abs(ratios[:, None] / banned[None, :] - 1.0) > 0.03, axis=1)]
+
+    def coherence(t, w, period):
+        return np.abs(np.exp(2j * np.pi * np.outer(1.0 / period, t)) @ w) / max(float(w.sum()), 1e-9)
+
+    win, hop = params.HIDDEN_CHANGE_WINDOW_MS, params.HIDDEN_CHANGE_HOP_MS
+    run, run_start, best = 0, None, (0.0, 1.0)
+    start = 0.0
+    while start + win <= duration_s * 1000.0:
+        inside = (times >= start) & (times < start + win)
+        hit = False
+        if int(inside.sum()) >= params.HIDDEN_CHANGE_MIN_ATTACKS:
+            t, w = times[inside], weights[inside]
+            own = float(coherence(t, w, np.array([beat]))[0])
+            other = coherence(t, w, beat * ratios)
+            k = int(np.argmax(other))
+            if other[k] >= params.HIDDEN_CHANGE_MIN and other[k] >= params.HIDDEN_CHANGE_FACTOR * own:
+                hit = True
+                if run == 0:
+                    run_start, best = start, (0.0, 1.0)
+                if other[k] > best[0]:
+                    best = (float(other[k]), float(1.0 / ratios[k]))
+        run = run + 1 if hit else 0
+        if run >= params.HIDDEN_CHANGE_RUNS:
+            return {"start_s": run_start / 1000.0, "end_s": (start + win) / 1000.0, "ratio": best[1]}
+        start += hop
+    return None

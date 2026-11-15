@@ -20,6 +20,45 @@ version is `v1.0.0-stable` (2026-10-28).
 
 ---
 
+## Unreleased — 2026-11-15 · The one-line phase and the attack-rise lead re-tuned: nothing to change
+
+No engine change. The knobs of the one-line phase (2026-11-09) and the attack-rise lead
+replayed (`bench/replay.py --relead`) on the server's master runs: 1b4c353 for the
+baselines and the Beat This! source, 09ea196 for the knobs (its baselines read the same
+as 1b4c353's on every stage). Songs rankable, dev / held out, the lead refitted on dev.
+
+### Measured
+
+| change | bands | anime-single | anime-variable |
+|---|---|---|---|
+| none (master) | 50.0 / 53.7 | 84.4 / 81.0 | 25.3 / 27.1 |
+| ATTACK_RISE_SLOPE 0.554 → 0.8 | 50.0 / 53.7 | 84.6 / 81.0 | 25.6 / 27.1 |
+| ATTACK_RISE_MEAN_MS 11.3 → 8 | 49.2 / 53.7 | 85.4 / 82.0 | 25.6 / 28.0 |
+| ATTACK_RISE_REACH_S 0.06 → 0.03 | 50.0 / 53.7 | 84.4 / 81.5 | 25.6 / 27.1 |
+| ONE_LINE_PHASE_TOL 0.1 → 0.12 | 49.2 / 53.7 | 84.4 / 81.0 | 25.6 / 27.1 |
+| ONE_LINE_PHASE_TOL 0.1 → 0.15 | 48.4 / 56.1 | 83.8 / 80.5 | 26.0 / 27.1 |
+| ONE_LINE_PHASE off | 45.9 / 53.7 | 82.1 / 78.0 | 24.9 / 28.8 |
+| one-line phase from Beat This!'s beats | 50.0 / 53.7 | 79.5 / 77.0 | 24.6 / 26.3 |
+| ... the mean of the beats' and the attacks' | 48.4 / 56.1 | 83.5 / 79.5 | 24.9 / 26.3 |
+
+Bands' missed songs on master, by `rankable.verdict`'s cause: dev 61 of 122 (octave 30,
+tempo 19, lines 6, offset 5, refused 1), held out 19 of 41 (octave 10, tempo 4, offset 4,
+lines 1). Most octave and tempo misses are maps of tens to hundreds of red lines (drawn
+curves, roadmap 30.6) or songs the Rust core refuses; the offset misses sit 10-16 ms out,
+the per-song constant 2026-11-15 (roadmap 30.7) found no file property for.
+
+### Rejected / tried and dropped
+
+- **Every knob above.** No setting raises bands' dev songs; the slope at 0.8 is the only
+  one with no dev or held-out loss on any stage, and it moves one anime-single dev song.
+  The wider tolerance and the blended source win held-out bands songs (+1) only by losing
+  dev ones, which is the choice the dev split exists to refuse.
+- **Beat This!'s beats as the one-line phase** (their mean distance to the line, within
+  the same tolerance, with or without a ±5 ms bias): anime-single dev -4.9 points and 92
+  maps broken; the network's beats are no closer to the mappers' phase than the attacks.
+
+---
+
 ## Unreleased — 2026-11-15 · The separated drums lose held-out songs too: 27.13 closed (roadmap 27.13)
 
 No engine change. The server's six stage runs with `--experiment stems-drums` (the drums

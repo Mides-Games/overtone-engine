@@ -20,6 +20,71 @@ version is `v1.0.0-stable` (2026-10-28).
 
 ---
 
+## Unreleased — 2026-11-15 · Offset misses do not follow the audio file (roadmap 30.7)
+
+No engine change, no flag. The question: 68 % of anime-single's rankable misses are offset
+only (the BPM and the lines right, the beat more than 10 ms from the ranked map after the
+mappers' lead). Does that error depend on the file itself, so that a per-file correction
+could fix it without a new detector? It does not.
+
+The same 09ea196 baselines as above (anime-single d829e3 / 286034, anime-variable 068954 /
+83cd59, bands 7e67f5 / 6147a7). Each map's offset error is `bench/rankable.py`'s own offset
+less the lead fitted on dev (anime-single +30.0 ms). The file properties were read from
+the owner's local Songs folders, matched by audio SHA-1: 881 of the reports' 1 228 audios
+(1 968 of anime-single's 2 830 dev maps). They are aggregates only; the names stay local.
+
+### Measured
+
+The error is the song's, not the mapper's. On anime-single's 1 858 locked dev maps with
+local audio (322 songs), the sd is 6.0 ms between song medians and 0.7 ms between maps of
+one song; 0.4 % of maps sit more than 5 ms from their song's median. Anime-variable and
+bands: 5.3 / 0.0 and 5.1 / 0.0 ms. The 298 dev offset misses split 142 late and 156 early
+(median 13.0 ms out), so no one sign is there to correct.
+
+No file property predicts it (anime-single dev, locked maps, error = own offset - lead):
+
+| file | maps | rankable | error median | IQR | p10 / p90 |
+|---|---|---|---|---|---|
+| OGG | 168 | 85.7 % | -2.0 | -5.0..+1.0 | -9.0 / +2.7 |
+| MP3, LAME-style tag (delay 576 on 1 267 of 1 272) | 1 272 | 91.7 % | -1.1 | -4.6..+2.3 | -8.5 / +7.0 |
+| MP3, no Xing tag | 418 | 86.1 % | +1.1 | -1.7..+5.0 | -5.4 / +10.0 |
+| 44.1 kHz | 1 321 | 92.3 % | -1.0 | -4.4..+2.6 | -8.5 / +7.0 |
+| 48 kHz | 537 | 84.2 % | -0.3 | -3.0..+4.2 | -7.1 / +10.0 |
+| Rust core decoded it | 2 402 | 89.1 % | -0.5 | -3.9..+3.0 | -8.5 / +7.3 |
+| v3 decoded it (the Rust core refused) | 291 | 83.5 % | -0.3 | -4.4..+4.0 | -7.0 / +11.7 |
+
+Leading silence (to -60, -40 or -20 dBFS) sorts nothing either: every bucket's median is
+between -8.6 and +8.0 ms on 9 to 1 408 maps, with no trend. Per song (322), the correlation of
+the error with each property: OGG -0.08, tagged MP3 -0.12, 48 kHz +0.12, bitrate +0.07,
+padding -0.06, ID3 size +0.01, leading silence -0.03 to +0.08; r² at most 1.4 %. All of
+them in one linear model, fitted on one seeded half of the songs: the other half's sd
+5.79 -> 5.78 ms.
+
+The decoders agree with that. The Rust core decodes with Symphonia's default options
+(no gapless trim), v3 with libsndfile (which trims), and tagged MP3, untagged MP3 and OGG
+sit within 3 ms of each other on both: neither leaves a 25 ms encoder-plus-decoder delay
+in the attacks.
+
+What a per-file correction could ever be worth: a perfect constant per song (the oracle,
+fitted on each song's own maps) would make 1 854 of the 1 968 dev maps rankable, against
+1 671 today. The error is a per-song constant, so the evidence that sets it has to come
+from the song's sound, not its file.
+
+### Rejected / tried and dropped
+
+- **A correction per codec**, fitted on dev (OGG -2.0, tagged MP3 -1.1, untagged MP3 +1.1
+  ms on anime-single), lines moved per file and re-read with `rankable.verdict`, local
+  maps only: anime-single dev +1 map and -2 songs (1 671 -> 1 672, 292 -> 290); held out,
+  read once, +16 maps and no song (803 -> 819, 117 songs). Anime-variable dev -2 maps, -2
+  songs; bands dev -6 maps, -1 song and held out -5 maps, -1 song (each stage with its own
+  dev fit). No dev gain, a loss on bands: not built as a flag.
+- **Honouring the MP3 encoder delay** (or undoing it): 1 267 of 1 272 tagged files carry
+  the same 576 samples, so it is a constant the lead already absorbs, not a per-file
+  difference (as 2026-11-07 found on 479 agreeing audios, r = -0.10).
+
+---
+
+
 ## Unreleased — 2026-11-15 · Where the variable songs are lost: drawn curves, and one grid over a real change (roadmap 30.5, 30.6)
 
 No engine change. The same 09ea196 baselines as 28.7 (anime-variable 068954 / 83cd59,

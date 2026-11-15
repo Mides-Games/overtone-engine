@@ -20,6 +20,34 @@ version is `v1.0.0-stable` (2026-10-28).
 
 ---
 
+## Unreleased — 2026-11-15 · The separated drums lose held-out songs too: 27.13 closed (roadmap 27.13)
+
+No engine change. The server's six stage runs with `--experiment stems-drums` (the drums
+stem as the onset source, master 09ea196, app engine, ranked maps) against the same
+baselines as the percussive input's (2026-11-14), paired song by song as there (10 000
+bootstrap draws over songs, seed 0; the lead fitted on each run's own dev maps: +21.0 to
++21.4 ms with the stem, +28.5 to +30.0 without).
+
+### Measured
+
+| stage | split | songs | songs rankable, without → with | change, 95 % interval | fixed / broken | run time, without → with | peak RAM, without → with |
+|---|---|---|---|---|---|---|---|
+| anime-single | dev | 474 | 84.2 → 86.9 % | +2.7 [+0.0, +5.5] | 29 / 16 | 118 → 6 889 s | 307 → 1 641 MB |
+| anime-single | held out | 200 | 80.5 → 81.5 % | +1.0 [−3.5, +5.5] | 12 / 10 | 53 → 3 270 s | 219 → 1 584 MB |
+| anime-variable | dev | 289 | 25.3 → 25.6 % | +0.3 [−1.7, +2.4] | 5 / 4 | 93 → 6 076 s | 282 → 4 436 MB |
+| anime-variable | held out | 118 | 27.1 → 26.3 % | −0.8 [−4.2, +2.5] | 2 / 3 | 37 → 2 498 s | 196 → 3 487 MB |
+| bands-variable | dev | 122 | 50.0 → 50.0 % | +0.0 [−4.1, +4.1] | 3 / 3 | 56 → 3 244 s | 290 → 2 170 MB |
+| bands-variable | held out | 41 | 53.7 → 51.2 % | −2.4 [−7.3, +0.0] | 0 / 1 | 18 → 1 031 s | 151 → 1 694 MB |
+
+### Rejected / tried and dropped
+
+- **The separated-drums input** (27.13): no held-out interval excludes zero, and bands, the
+  cohort it was for, loses a song, at 55-70 times the run time and 5-18 times the RAM. With
+  the percussive input of 2026-11-14 it closes 27.13's first test: neither signal ablation
+  is kept, so 27.15's release gate has no candidate from it.
+
+---
+
 ## Unreleased — 2026-11-15 · Drawn curves reported apart (roadmap 30.6)
 
 No engine change: a measurement split.

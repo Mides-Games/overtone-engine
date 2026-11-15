@@ -20,6 +20,56 @@ version is `v1.0.0-stable` (2026-10-28).
 
 ---
 
+## Unreleased — 2026-11-14 · A wrong line in someone else's map, measured on this PC (roadmap 30.3, 30.4)
+
+### Changed
+
+- **`bench/line_audit.py`** (30.4): `bench/health_truth.py`'s protocol (every ranked map
+  with two red lines or more, intact and with one seeded line moved 5 / 15 / 30 ms, its
+  `shifted`, `flags` and `summarise`) run on the local Songs folder, ranked maps told apart
+  by the local osu!.db, attacks once per audio from the Rust core and cached in
+  `bench/.cache/line_audit`. It prints aggregates only. A detector gets a first number
+  here before the server.
+- A **phase detector** beside the P19 grader (30.3): each red line's median phase of its
+  strong attacks against the map's own half-beat grid, flagged when it leaves the map's
+  common phase by more than 9 ms and six of its standard errors (at least 16 attacks).
+  Nothing is refitted. A measurement only: nothing in the engine or the site uses it.
+
+### Measured
+
+80 audios per sample, Rust attacks, this PC. Seed 61 is where the detector's thresholds
+were chosen; seed 62 was read once, after.
+
+| sample | detector | maps / lines | correct lines flagged | shifts found, 5 / 15 / 30 ms | precision on the 15 ms pool |
+|---|---|---|---|---|---|
+| seed 61 | P19 grader | 87 / 2 996 | 12.1 % | 3.4 / 11.5 / 11.5 % | 1.4 % |
+| seed 61 | phase | 87 / 2 996 | 0.3 % | 1.1 / 14.9 / 24.1 % | 41.9 % |
+| seed 62 | P19 grader | 86 / 1 732 | 14.6 % | 3.5 / 10.5 / 12.8 % | 1.8 % |
+| seed 62 | phase | 86 / 1 732 | 0.5 % | 0.0 / 5.8 / 16.3 % | 16.7 % |
+
+The P19 grader's local numbers are the server's of 2026-11-06 (10.9-12.1 % of correct lines
+flagged, 7.5-10.9 % of 15 ms shifts found), so the local sample stands in for the server
+on this protocol. The phase detector's first rule (7 ms, 3 sigmas, 8 attacks) read 2.3 %,
+27.6 % and 14.6 % on seed 61, and 2.9 %, 14.0 % and 9.8 % on seed 62.
+
+What holds recall down, on seed 61's moved lines: 36 % of them have fewer than 8 strong
+attacks near their grid (the median red line of these maps spans 1.3 s), and a 15 ms move
+reads as 10 ms (median) through the fixed window. Moving the window onto the median and
+reading again (two passes) recovered the move and flagged more correct lines with it:
+precision at the best rule fell from 41.9 % to 32.7 % on seed 61.
+
+### Rejected / tried and dropped
+
+- **The phase detector as 30.3's answer**: on the sample it was not tuned on it finds 5.8 %
+  of 15 ms errors at 16.7 % precision, against the 50 % and 60 % set before any run. It is
+  ten times more precise than the P19 grader and still far from a tool. A third of these
+  maps' red lines are too short to be judged alone, so the next detector has to judge a
+  line with its neighbours, not by itself.
+- **Recentring the residual window**: it recovers a moved line's full shift and also
+  pulls correct lines onto neighbouring attack clusters.
+
+---
+
 ## Unreleased — 2026-11-14 · Beat This! in int8 is no faster and moves beats (roadmap 27.9)
 
 No engine change. The shipped model (`beat_this_final0.onnx`, fp32, 83.2 MB) quantized

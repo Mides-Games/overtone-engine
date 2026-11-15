@@ -20,6 +20,43 @@ version is `v1.0.0-stable` (2026-10-28).
 
 ---
 
+## Unreleased — 2026-11-15 · Drawn curves reported apart (roadmap 30.6)
+
+No engine change: a measurement split.
+
+### Changed
+
+- `bench/rankable.py` names **curve maps** in one rule, `is_curve_map`: more than half of
+  a map's mapped red lines span under 4 s (each up to the next, the last to the end of the
+  song). A song is a curve song when all its maps are. The summary keeps every total it
+  had and adds `curve` and `rest` (maps, songs, rankable, exact); its printout and every
+  stage report's (`bench/stages.py` calls the same summary) show both lines under the
+  totals. Why: a drawn tempo curve is not something a grid follows to 10 ms, and with 37 %
+  of anime-variable's maps being one, a change that helps the rest moved the headline by
+  a fraction of what it did.
+
+### Measured
+
+The 09ea196 baselines (bands 7e67f5 / 6147a7, anime-variable 068954 / 83cd59, anime-single
+d829e3 / 286034), dev / held out; totals unchanged by construction:
+
+| stage | split | curve: songs rankable | curve: maps rankable | rest: songs rankable | rest: maps rankable | total songs / maps |
+|---|---|---|---|---|---|---|
+| bands-variable | dev | 3.6 % of 28 | 3.3 % of 153 | 63.8 % of 94 | 72.1 % of 537 | 50.0 / 56.8 % |
+| bands-variable | held out | 0.0 % of 8 | 0.0 % of 32 | 66.7 % of 33 | 75.8 % of 186 | 53.7 / 64.7 % |
+| anime-variable | dev | 0.9 % of 110 | 0.2 % of 648 | 40.2 % of 179 | 44.6 % of 993 | 25.3 / 27.1 % |
+| anime-variable | held out | 2.4 % of 41 | 3.8 % of 208 | 40.3 % of 77 | 39.2 % of 446 | 27.1 / 28.0 % |
+| anime-single | dev | 0.0 % of 2 | 0.0 % of 18 | 84.5 % of 472 | 84.7 % of 2 812 | 84.2 / 84.2 % |
+| anime-single | held out | 0.0 % of 2 | 0.0 % of 9 | 81.3 % of 198 | 83.9 % of 1 280 | 80.5 / 83.3 % |
+
+The rule finds anime-variable's 856 curve maps of the finding below exactly, and 185 of
+bands' 908 (the finding counted 177; the eight maps between the two counts were not
+traced). Curve maps are 0-4 % rankable on every stage; with
+them out, a variable stage's rankable share is 39-76 %, so a change to the rest now moves
+the line that shows it by about 1.6x (anime-variable) to 1.3x (bands) what it moved the total.
+
+---
+
 ## Unreleased — 2026-11-15 · Offset misses do not follow the audio file (roadmap 30.7)
 
 No engine change, no flag. The question: 68 % of anime-single's rankable misses are offset

@@ -1235,6 +1235,40 @@ class RankableVerdictTests(unittest.TestCase):
                          (2, 1, 0, 1))
         self.assertEqual(s["causes"]["offset"], 2)
 
+    def test_a_curve_map_has_most_lines_under_four_seconds(self):
+        from bench.rankable import is_curve_map
+
+        def m(offsets, duration_s=60.0):
+            return {"rows": [self.row(o, 120.0) for o in offsets], "duration_s": duration_s}
+        # Lines at 0, 1, 2 s then one to the end: three of four under 4 s.
+        self.assertTrue(is_curve_map(m([0.0, 1000.0, 2000.0, 3000.0])))
+        # Two of four short is half, not more than half.
+        self.assertFalse(is_curve_map(m([0.0, 1000.0, 2000.0, 30000.0])))
+        # One line spans to the end of the song; the last line of a short song counts too.
+        self.assertFalse(is_curve_map(m([0.0])))
+        self.assertTrue(is_curve_map(m([0.0], duration_s=3.0)))
+        self.assertFalse(is_curve_map({"rows": [], "duration_s": 60.0}))
+
+    def test_summary_splits_curve_maps_from_the_rest(self):
+        from bench.rankable import summarise
+        curve = [self.row(o, 120.0) for o in (0.0, 1000.0, 2000.0)]
+        flat = [self.row(0.0, 120.0)]
+        ok = {"verdict": "exact", "cause": None, "lock_ms": 1.0}
+        off = {"verdict": "miss", "cause": "tempo", "lock_ms": 30.0}
+
+        def m(audio, rows, rank):
+            return {"audio_sha1": audio, "folder": audio, "rows": rows, "duration_s": 60.0,
+                    "rank": rank}
+        maps = [m("a", curve, off), m("a", curve, off),  # a curve song
+                m("b", curve, ok), m("b", flat, off),    # one flat map: the rest's song
+                m("c", flat, ok)]
+        s = summarise(maps)
+        self.assertEqual((s["maps"], s["songs"], s["rankable"], s["songs_rankable"]), (5, 3, 2, 2))
+        self.assertEqual({k: s["curve"][k] for k in ("maps", "rankable", "songs", "songs_rankable")},
+                         {"maps": 3, "rankable": 1, "songs": 1, "songs_rankable": 0})
+        self.assertEqual({k: s["rest"][k] for k in ("maps", "rankable", "songs", "songs_rankable")},
+                         {"maps": 2, "rankable": 1, "songs": 2, "songs_rankable": 2})
+
     def test_ranked_pairs_leave_copies_out_and_score_second_timers(self):
         from bench.rankable import ranked_pairs
 

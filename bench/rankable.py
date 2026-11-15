@@ -52,6 +52,14 @@ part's median, is how far the engine would put that note. Rankable within
 10 ms, playable within 20 ms. Needs the map rows' ``notes`` (stage reports
 since 2026-11-08); older reports print the worst beat only.
 
+**Curve maps** (roadmap 30.6, 2026-11-15) are reported apart: a map whose
+mapped red lines mostly (more than half) span under 4 s, each line up to the
+next and the last to the end of the song. Those are a tempo curve drawn line by
+line, not tempo changes, and no grid follows them to 10 ms (37 % of
+anime-variable's ranked maps, 19 % of bands'); a change to every other map
+would drown in them. A song is a curve song when all its maps are curve maps.
+The totals stay as they were; the split is printed and kept beside them.
+
 Reads a stage report (bench/stages.py writes one; bench/remote.py result
 fetches the server's) and nothing else. A measurement, not a gate.
 """
@@ -80,6 +88,8 @@ OFFSET_WINDOW_MS = 50.0
 EDGE_MS = 2000.0
 BPM_BAR = 0.05
 CAUSES = ("refused", "octave", "tempo", "lines", "offset")
+#: A mapped red line spanning less than this (s) is a stroke of a drawn curve.
+CURVE_SPAN_S = 4.0
 
 
 def grid_beats_ms(lines: list[tuple[float, float]], start_ms: float, end_ms: float) -> np.ndarray:
@@ -295,6 +305,37 @@ def ranked_pairs(maps: list[dict]) -> np.ndarray:
     return np.asarray(rows, dtype=float).reshape(-1, 3)
 
 
+def is_curve_map(m: dict) -> bool:
+    """A drawn tempo curve: more than half of the map's mapped red lines span
+    under CURVE_SPAN_S, each up to the next line and the last to the end of
+    the song (``duration_s``). A map row without ``rows`` is not one."""
+    starts = sorted(float(r["offset_ms"]) for r in m.get("rows") or [])
+    if not starts:
+        return False
+    ends = starts[1:] + [max(float(m.get("duration_s") or 0.0) * 1000.0, starts[-1])]
+    short = sum(end - start < CURVE_SPAN_S * 1000.0 for start, end in zip(starts, ends))
+    return short > len(starts) / 2
+
+
+def _cohort(maps: list[dict], songs: list[list[dict]]) -> dict:
+    """Rankable maps and songs of one cohort (curve maps or the rest)."""
+    return {"maps": len(maps), "songs": len(songs),
+            "exact": sum(m["rank"]["verdict"] == "exact" for m in maps),
+            "rankable": sum(m["rank"]["verdict"] != "miss" for m in maps),
+            "songs_exact": sum(any(m["rank"]["verdict"] == "exact" for m in ms) for ms in songs),
+            "songs_rankable": sum(any(m["rank"]["verdict"] != "miss" for m in ms) for ms in songs)}
+
+
+def curve_split(maps: list[dict], songs: list[list[dict]]) -> dict:
+    """The headline for curve maps and for the rest: a map by is_curve_map, a
+    song by all of its maps (a song with one map that is not a curve is the rest's)."""
+    curve = {id(m) for m in maps if is_curve_map(m)}
+    curve_songs = [ms for ms in songs if all(id(m) in curve for m in ms)]
+    rest_songs = [ms for ms in songs if not all(id(m) in curve for m in ms)]
+    return {"curve": _cohort([m for m in maps if id(m) in curve], curve_songs),
+            "rest": _cohort([m for m in maps if id(m) not in curve], rest_songs)}
+
+
 def summarise(maps: list[dict]) -> dict:
     n = len(maps)
     counts = Counter(m["rank"]["verdict"] for m in maps)
@@ -321,7 +362,8 @@ def summarise(maps: list[dict]) -> dict:
             "songs_note_rankable": sum(any(m["rank"].get("note_verdict") == "rankable" for m in ms)
                                        for ms in songs),
             "songs_note_playable": sum(any(m["rank"].get("note_verdict") in ("rankable", "playable")
-                                           for m in ms) for ms in songs)}
+                                           for m in ms) for ms in songs),
+            **curve_split(maps, songs)}
 
 
 def pct(part: int, whole: int) -> str:
@@ -342,6 +384,12 @@ def print_summary(name: str, s: dict) -> None:
         print(f"  {'':<9} notes : rankable {pct(s['songs_note_rankable'], noted)} %"
               f" (worst note <= {RANKABLE_MS:g} ms), playable {pct(s['songs_note_playable'], noted)} %"
               f" (<= {PLAYABLE_MS:g} ms), of {noted} songs with notes")
+    for cohort in ("curve", "rest"):
+        c = s.get(cohort)
+        if c:
+            print(f"  {'':<9} {cohort:<5} : songs rankable {pct(c['songs_rankable'], c['songs'])} %"
+                  f" of {c['songs']}, maps rankable {pct(c['rankable'], c['maps'])} %"
+                  f" of {c['maps']}, exact {pct(c['exact'], c['maps'])} %")
     print(f"  {'':<9} why a miss ({s['miss']} maps): " + ", ".join(
         f"{c} {pct(s['causes'][c], s['miss']).strip()} %" for c in CAUSES))
 

@@ -1534,6 +1534,24 @@ an experiment.
 | 29.10 | **Beat This! in Rust (`ort`)**, the one port that pays: one decode instead of two, and the slowest stage out of Python. Audit against golden vectors first (docs/17 §7). | Same activations within tolerance; server time per song measured before and after. | P3 | **parked** (2026-11-14) — measured first: the network is 95 % of the stage (21.4 of 22.6 s on long-6min); a port with the same ONNX Runtime saves at most ~4 %. The time levers are the model's (int8, small0: docs/17 §7) |
 | 29.11 | **The song's tempo against Beat This!, and the merged line's BPM.** A song the core reads at 2/3 of its beat moves to 3/2 when the network hears it there (`SONG_TRIPLET_BEAT_THIS`); one read at half doubles when the network hears double and the song's own tempo is 115 or more (`SONG_DOUBLE_BEAT_THIS`); near-equal lines merge at the BPM the song holds longest, not the lines' plain median (`MERGE_STEADY_BY_SPAN`). | Rankable songs gained on dev and held out, none lost. | P0 | **on** (2026-11-11) — replayed on the server's runs of 037664a: anime-single dev 83.3 -> 84.4 %, held out 79.5 -> 81.0 %; bands dev 49.2 -> 50.0 %, held out 53.7 unchanged; 0 lost. The doubling has no held-out case. Not yet run on the server |
 
+## Phase 30 — Faster runs, and timing someone else's map (proposed 2026-11-14)
+
+Two things this day measured or shipped point here. Every input and model tried on
+2026-11-14 (the percussive input, the tempo judge, an int8 Beat This!) cost far more time
+than it gave back, and Beat This! is still 95 % of its own stage (29.10). The cheaper wins
+left are in how the network is run, not which network. The site now opens a mapper's own
+map with its song and red lines and writes the timing back into its .osu (overtone-site
+#42, docs/site.md "Opening an osu! map"). That calls for an engine that starts from a
+timing someone else made, and either corrects it where the attacks prove it wrong or says
+where it is wrong, without re-timing a map that was right.
+
+| Step | Work | Exit evidence | Priority | State |
+|---|---|---|---|---|
+| 30.1 | **Beat This! session tuning.** The CPU provider's intra-op threads and graph optimisation level, and the memory arena, measured per song and for two analyses at once (the server's `--jobs 2`). | The same beats to the frame on bench/audio and a library sample, and a measured time or RAM gain; else the defaults stay. | P2 | **started** (2026-11-14) |
+| 30.2 | **Refine a map's own timing.** With a mapper's red lines as the prior, move a line only where the attacks prove it: its offset within ±25 ms, its BPM within ±0.5 %. Never add or remove a line, and never touch a locked one. It needs 30.3's detector first: a line moves only where it is flagged. | On ranked maps perturbed by a seeded offset (±5-20 ms) or BPM (±0.2 %), ≥ 90 % of the perturbed lines back within 2 ms of the ranked one, and no unperturbed map's line moved by more than 1 ms. | P1 | not started |
+| 30.3 | **Audit a map without changing it.** Per red line, whether its strong attacks say it is off, shown when the site opens a map. The P19 grader (`grade_reference_timing`) already does this and fails: R6 measured it with `bench/health_truth.py` (2026-11-06), and it flags 10.9–12.1 % of correctly timed ranked lines and finds 7.5–10.9 % of 15 ms shifts. So this is a new detector, measured on that same protocol. | On ranked maps with one seeded line moved 15 ms (`health_truth.py`'s shifts): ≥ 60 % of flags true (R6's bar), under 2 % of intact lines flagged, ≥ 50 % of the 15 ms shifts found. | P1 | not started |
+| 30.4 | **A local library sample for real-audio checks.** A seeded, uncommitted sample of the owner's Songs folder (as Corpus B and `bench/local_data.py` keep theirs), so a change that needs real audio gets a first number on this PC before the server (27.9's int8 was measured this way). | A command that writes and reruns the sample, and its numbers in the timeline. | P2 | not started |
+
 ## Rejected ideas
 
 | Idea | Verdict |

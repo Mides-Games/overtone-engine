@@ -20,6 +20,34 @@ version is `v1.0.0-stable` (2026-10-28).
 
 ---
 
+## Unreleased — 2026-11-15 · Mappers' round BPMs are not what the engine misses (roadmap 28.7)
+
+No engine change. The server's runs of 09ea196 without an experiment (the same baselines
+as 27.13: bands 7e67f5 / 6147a7, anime-variable 068954 / 83cd59, anime-single d829e3 /
+20261113-043001-286034), read again by `bench/rankable.py` with the engine's lines
+rewritten: every line within a tolerance of a whole BPM (else of a .5) is written at it,
+its middle beat held as TIDY_BPM holds it, and each song's verdict read again.
+
+### Measured
+
+| stage | mapped lines whole or .5 | engine lines whole or .5 | songs rankable, dev / held out, as written | best tolerance's change, dev / held out |
+|---|---|---|---|---|
+| bands-variable | 85.4 % of 17 339 | 18.2 % of 15 502 | 50.0 / 53.7 % | 0 / 0 (at 0.2 BPM: 0 / −1 song) |
+| anime-variable | 93.5 % of 35 877 | 22.1 % of 17 687 | 25.3 / 27.1 % | +1 / 0 at 0.1 BPM (at 0.2: +1 / −2) |
+| anime-single | 98.1 % of 4 119 | 84.3 % of 4 914 | 84.2 / 80.5 % | +1 / 0 at 0.01-0.02 (at 0.05: +1 / −2) |
+
+Tolerances 0.01, 0.02, 0.05, 0.1 and 0.2 BPM. Few of the engine's other lines are near a
+round BPM at all: 925 of bands' 15 502 lie within 0.05 of a whole one, 1 281 of
+anime-variable's 17 687.
+
+### Rejected / tried and dropped
+
+- **Writing BPMs as mappers do** (28.7's rounding): no tolerance gains a held-out song,
+  and the wider ones lose some. The engine's variable-tempo lines miss rankable by where
+  and how many lines it writes, not by their decimals.
+
+---
+
 ## Unreleased — 2026-11-15 · Beat This!'s session options change nothing (roadmap 30.1), and two more line detectors dropped (30.3)
 
 No engine change.

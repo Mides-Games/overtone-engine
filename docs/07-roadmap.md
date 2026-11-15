@@ -1475,6 +1475,10 @@ Each step is an experiment on the server, kept only if held out moves too.
 28.7 **Write lines as bands mappers do.** From the server's ~25 000 maps, learn how live
      songs are timed: lines per minute, whole vs .5 vs two-decimal BPMs, lines on section
      starts. Place and round red lines to that habit where the attacks allow.
+     **Rounding measured, rejected (2026-11-15):** mapped BPMs are 85-98 % whole or .5,
+     the engine's variable-tempo lines 18-22 %, yet writing the engine's lines at the nearest
+     round BPM (0.01-0.2 BPM tolerance) gains no held-out song on any stage (docs/timeline.md).
+     Where and how many lines are written is what is left of 28.7.
 
 28.8 **A model of our own** (27.8), trained on bands maps' tempo and octave, as a judge.
 

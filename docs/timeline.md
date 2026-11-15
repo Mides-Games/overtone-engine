@@ -20,6 +20,38 @@ version is `v1.0.0-stable` (2026-10-28).
 
 ---
 
+## Unreleased — 2026-11-14 · The percussive input loses held-out songs (roadmap 27.13, first half)
+
+No engine change. The server's six stage runs with `--experiment percussive` (the
+HPSS percussive part as the onset source, master 09ea196, fingerprint of 8d1ac38's
+engine, app engine, ranked maps) against the same engine's runs without it, paired
+song by song (a song is rankable when any of its maps is; 10 000 bootstrap draws over
+songs, seed 0; the lead fitted on each run's own dev maps: +24.0 to +24.3 ms with it,
++28.5 to +30.0 ms without).
+
+### Measured
+
+| stage | split | songs (maps) | songs rankable, without → with | change, 95 % interval | fixed / broken | run time, without → with | peak RAM, without → with |
+|---|---|---|---|---|---|---|---|
+| anime-single | dev | 474 (2 830) | 84.2 → 85.9 % | +1.7 [−0.8, +4.4] | 24 / 16 | 118 → 7 549 s | 307 → 1 646 MB |
+| anime-single | held out | 200 (1 289) | 80.5 → 77.0 % | −3.5 [−8.0, +1.0] | 7 / 14 | 53 → 3 519 s | 219 → 1 577 MB |
+| anime-variable | dev | 289 (1 641) | 25.3 → 26.6 % | +1.4 [+0.0, +3.1] | 5 / 1 | 93 → 7 523 s | 282 → 3 840 MB |
+| anime-variable | held out | 118 (654) | 27.1 → 26.3 % | −0.8 [−2.5, +0.0] | 0 / 1 | 37 → 2 728 s | 196 → 2 549 MB |
+| bands-variable | dev | 122 (690) | 50.0 → 50.8 % | +0.8 [−3.3, +4.9] | 4 / 3 | 56 → 3 298 s | 290 → 1 867 MB |
+| bands-variable | held out | 41 (218) | 53.7 → 48.8 % | −4.9 [−12.2, +0.0] | 0 / 2 | 18 → 1 057 s | 151 → 1 652 MB |
+
+The anime-single held-out baseline is 20261113-043001-286034 (8d1ac38, the same engine);
+every other baseline is the 20261114-095002 batch on 09ea196.
+
+### Rejected / tried and dropped
+
+- **The percussive input** (27.13): the small dev gains do not hold. Every held-out
+  cohort loses songs (none of the three intervals lies above zero), at 60-80 times the
+  run time and 5-14 times the RAM. It stays off. The separated-drums input
+  (`--experiment stems-drums`) is the other half of 27.13, still running.
+
+---
+
 ## Unreleased — 2026-11-14 · The tempo judge end to end changes nothing now (roadmap 29.7)
 
 No engine change. The server's six stage runs with `--experiment tempo-judge` (master

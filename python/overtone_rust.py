@@ -60,6 +60,7 @@ REFUSALS = {
     "no_coherent_pulse": "No rhythmic pulse found: this audio sounds like noise or has no "
                          "beat, so there is no BPM to report.",
     "large_grid_residual": "The music does not sit on a fixed grid.",
+    "hidden_change": "One grid does not hold the whole song: its tempo changes.",
 }
 
 
@@ -209,6 +210,13 @@ def _analyze(path, source: str, binary, min_delta: float, persistence: int,
     if capture is not None:
         capture["report"] = report
     analysis = analysis_from_report(report)
+    # One grid over a real tempo change (HIDDEN_CHANGE_CHECK, roadmap 30.5): refused
+    # here, so the app's multi-tempo path takes the song, as for any other refusal.
+    if ta.HIDDEN_CHANGE_CHECK and len(analysis.points) == 1:
+        found = ta._hidden_tempo_change(analysis.attack_times, analysis.attack_weights,
+                                        float(analysis.points[0].bpm), float(analysis.duration))
+        if found:
+            raise SidecarRefused(REFUSALS["hidden_change"], [{"kind": "hidden_change", **found}])
     if not prefer_map_bpm:
         return analysis
     return conventions(analysis, path, min_delta, persistence, min_confidence, capture=capture)

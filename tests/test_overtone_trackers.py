@@ -1527,3 +1527,34 @@ class TempoJudgeTests(unittest.TestCase):
             raise RuntimeError("Could not decode audio. For MP3/M4A/AAC install FFmpeg")
         with mock.patch.object(overtone, "TEMPO_JUDGE", True):
             self.assertIs(overtone._tempo_judge(analysis, undecodable), analysis)
+
+
+class HiddenChangeTests(unittest.TestCase):
+    """HIDDEN_CHANGE_CHECK (roadmap 30.5): one grid over a real tempo change is refused."""
+
+    @staticmethod
+    def _grid(bpm, start, stop, seed):
+        rng = np.random.default_rng(seed)
+        times = np.arange(start, stop, 60.0 / bpm)
+        return times + rng.normal(0.0, 0.002, times.size)
+
+    def test_a_change_the_grid_cannot_follow_is_found_where_it_is(self):
+        import overtone
+        times = np.concatenate([self._grid(120, 0, 30, 0), self._grid(150, 30, 60, 1)])
+        found = overtone._hidden_tempo_change(times, np.ones(times.size), 120.0, 60.0)
+        self.assertIsNotNone(found)
+        self.assertAlmostEqual(found["start_s"], 30.0, delta=2.0)
+        self.assertAlmostEqual(found["ratio"], 1.25, delta=0.02)
+
+    def test_a_steady_song_and_the_same_grid_at_another_octave_are_not_a_change(self):
+        import overtone
+        steady = self._grid(120, 0, 60, 2)
+        self.assertIsNone(overtone._hidden_tempo_change(steady, np.ones(steady.size), 120.0, 60.0))
+        double = np.concatenate([self._grid(120, 0, 30, 3), self._grid(240, 30, 60, 4)])
+        self.assertIsNone(overtone._hidden_tempo_change(double, np.ones(double.size), 120.0, 60.0))
+        # Too few attacks to judge a window: nothing is found, nothing is guessed.
+        self.assertIsNone(overtone._hidden_tempo_change(steady[:5], np.ones(5), 120.0, 60.0))
+
+    def test_the_check_is_off_by_default(self):
+        import overtone
+        self.assertFalse(overtone.HIDDEN_CHANGE_CHECK)

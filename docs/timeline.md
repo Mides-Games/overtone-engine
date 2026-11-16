@@ -20,6 +20,34 @@ version is `v1.0.0-stable` (2026-10-28).
 
 ---
 
+## Unreleased — 2026-11-16 · The hidden-change check measured: it refuses the right songs, and nothing follows (roadmap 30.5)
+
+No engine change; `HIDDEN_CHANGE_CHECK` stays off. Real stage runs on the VPS with
+`--experiment hidden-change` (master 1b4c353's code, app engine, ranked maps), against the
+server's own baselines of 1b4c353 (bands 9565d9 / 75030e, anime-variable 6885b7 / dd805c).
+
+### Measured
+
+| stage | split | songs rankable, without → with | fixed / broken | songs refused by the check |
+|---|---|---|---|---|
+| bands-variable | dev | 50.0 → 50.0 % | 0 / 0 | 11 of 129 |
+| bands-variable | held out | 53.7 → 53.7 % | 0 / 0 | |
+| anime-variable | dev | 25.3 → 25.3 % | 0 / 0 | |
+| anime-variable | held out | 27.1 → 27.1 % | 0 / 0 | |
+
+The check fires where it should (Linkin Park's Guilty All The Same, both audios: a stretch at
+1.25-1.37× the grid's tempo), and the Rust core refuses those songs. v3, which takes a refused
+song, writes its own single line for each of them on the precision path, so the maps read the
+same. Finding the change was never the missing half: writing the second line, on the beat
+where the tempo turns, is (29.4's ceiling).
+
+### Rejected / tried and dropped
+
+- **Turning `HIDDEN_CHANGE_CHECK` on** as it is: no song changes on either stage. It would only
+  pay with a writer that splits the song at the stretch it found.
+
+---
+
 ## Unreleased — 2026-11-16 · What Beat This! hears, sent to the page for timing by hand (timing-result v1.3)
 
 ### Changed

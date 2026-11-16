@@ -73,6 +73,9 @@ def shift_result(result: dict, shift: float) -> dict:
         out["onsets"] = {**result["onsets"], "t_ms": [_shift_ms(t, shift, True) for t in result["onsets"]["t_ms"]]}
     if "downbeats_ms" in result:
         out["downbeats_ms"] = [_shift_ms(t, shift, True) for t in result["downbeats_ms"]]
+    if isinstance(result.get("heard"), dict):
+        out["heard"] = {key: [_shift_ms(t, shift, True) for t in result["heard"].get(key, [])]
+                        for key in ("beats_ms", "downbeats_ms")}
     if isinstance(result.get("onset_envelope"), dict):
         # The envelope covers the stretch only: where it starts says where to draw it.
         out["onset_envelope"] = {**result["onset_envelope"], "start_ms": _shift_ms(0, shift, True)}

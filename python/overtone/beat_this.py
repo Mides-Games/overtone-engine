@@ -63,9 +63,30 @@ def _beat_this_judge_beats(y: np.ndarray, sr: int):
     key = (id(y), int(y.size), int(sr))
     if params._BEAT_THIS_HEARD and params._BEAT_THIS_HEARD[0][0] == key and params._BEAT_THIS_HEARD[0][1] is y:
         return params._BEAT_THIS_HEARD[0][2]
-    beats = _beat_this_beats(y, sr, session=params._BEAT_THIS_JUDGE[0])
-    params._BEAT_THIS_HEARD[:] = [(key, y, beats)]
+    beats, downbeats = _beat_this_beats(y, sr, session=params._BEAT_THIS_JUDGE[0], downbeats=True)
+    params._BEAT_THIS_HEARD[:] = [(key, y, beats, downbeats)]
     return beats
+
+
+def _beat_this_heard(y: np.ndarray | None = None, sr: int | None = None):
+    """Beat This!'s beats and downbeats (s) for the song the judge last heard,
+    or for ``y`` at ``sr``: one network pass gives both, and a song the
+    judges already asked about costs nothing more. ``(None, None)`` without
+    the model or the runtime, or with no song heard and none given."""
+    if params._BEAT_THIS_HEARD and (y is None or params._BEAT_THIS_HEARD[0][1] is y):
+        entry = params._BEAT_THIS_HEARD[0]
+        if len(entry) > 3 and entry[3] is not None:
+            return entry[2], entry[3]
+        y, sr = entry[1], entry[0][2]
+    if y is None or sr is None:
+        return None, None
+    if not params._BEAT_THIS_JUDGE:
+        params._BEAT_THIS_JUDGE.append(_load_beat_this())
+    if params._BEAT_THIS_JUDGE[0] is None:
+        return None, None
+    beats, downbeats = _beat_this_beats(y, sr, session=params._BEAT_THIS_JUDGE[0], downbeats=True)
+    params._BEAT_THIS_HEARD[:] = [((id(y), int(y.size), int(sr)), y, beats, downbeats)]
+    return beats, downbeats
 
 
 def _song_octave_by_beat_this(analysis: Analysis, heard) -> Analysis:
@@ -691,37 +712,66 @@ def _beat_this_spectrogram(signal: np.ndarray) -> np.ndarray:
     return out
 
 
-def _beat_this_logits(session, spect: np.ndarray) -> np.ndarray:
-    """Frame-wise beat logits over the whole song, chunk by chunk."""
+def _beat_this_logits(session, spect: np.ndarray, heads: int = 1):
+    """Frame-wise beat logits over the whole song, chunk by chunk; with
+    ``heads=2`` the downbeat head's too, from the same passes, as a pair."""
     frames = len(spect)
     step = params.BEAT_THIS_CHUNK - 2 * params.BEAT_THIS_BORDER
     starts = np.arange(-params.BEAT_THIS_BORDER, frames - params.BEAT_THIS_BORDER, step)
     if frames > step:
         starts[-1] = frames - (params.BEAT_THIS_CHUNK - params.BEAT_THIS_BORDER)
-    logits = np.full(frames, -1000.0, dtype=np.float32)
+    logits = [np.full(frames, -1000.0, dtype=np.float32) for _ in range(heads)]
     for start in starts[::-1]:                  # earlier chunks win their overlap
         a, b = max(int(start), 0), min(int(start) + params.BEAT_THIS_CHUNK, frames)
         chunk = np.pad(spect[a:b], ((max(0, -int(start)),
                                      max(0, min(params.BEAT_THIS_BORDER, int(start) + params.BEAT_THIS_CHUNK - frames))),
                                     (0, 0)))
         data_model.checkpoint()
-        out = session.run(None, {"spect": chunk[None]})[0][0][params.BEAT_THIS_BORDER:-params.BEAT_THIS_BORDER]
+        outs = session.run(None, {"spect": chunk[None]})
         lo = int(start) + params.BEAT_THIS_BORDER
-        keep = max(0, min(len(out), frames - lo))
-        logits[lo:lo + keep] = out[:keep]
-    return logits
+        for head in range(heads):
+            out = outs[head][0][params.BEAT_THIS_BORDER:-params.BEAT_THIS_BORDER]
+            keep = max(0, min(len(out), frames - lo))
+            logits[head][lo:lo + keep] = out[:keep]
+    return logits[0] if heads == 1 else tuple(logits)
 
 
-def _beat_this_beats(y: np.ndarray, sr: int, session=None) -> np.ndarray | None:
+def _snap_downbeats(downbeats: np.ndarray, beats: np.ndarray) -> np.ndarray:
+    """Each downbeat on its nearest beat within BEAT_THIS_DOWNBEAT_SNAP_S, as
+    Beat This!'s own minimal post-processing does; one with no beat that
+    near is dropped, and two on one beat count once."""
+    if downbeats.size == 0 or beats.size == 0:
+        return np.zeros(0)
+    at = np.clip(np.searchsorted(beats, downbeats), 1, beats.size - 1) if beats.size > 1 \
+        else np.zeros(downbeats.size, dtype=int)
+    if beats.size > 1:
+        at = np.where(np.abs(beats[at - 1] - downbeats) <= np.abs(beats[at] - downbeats), at - 1, at)
+    near = np.abs(beats[at] - downbeats) <= params.BEAT_THIS_DOWNBEAT_SNAP_S
+    return np.unique(beats[at[near]])
+
+
+def _beat_this_beats(y: np.ndarray, sr: int, session=None, downbeats: bool = False):
     """Beat times (s) by Beat This!, or None when the network is unavailable;
-    ``session`` instead of the vote's."""
+    ``session`` instead of the vote's. With ``downbeats``, ``(beats,
+    downbeats)`` from the same pass, each downbeat on a beat
+    (:func:`_snap_downbeats`); ``(None, None)`` without the network."""
     session = session if session is not None else _beat_this_session()
     if session is None or y.size == 0:
-        return None
+        return (None, None) if downbeats else None
     import soxr
     signal = soxr.resample(np.asarray(y, dtype=np.float64), sr, params.BEAT_THIS_SR) \
         if sr != params.BEAT_THIS_SR else np.asarray(y, dtype=np.float64)
-    logits = _beat_this_logits(session, _beat_this_spectrogram(signal))
+    spect = _beat_this_spectrogram(signal)
+    if not downbeats:
+        return _logit_peaks(_beat_this_logits(session, spect))
+    beat_logits, bar_logits = _beat_this_logits(session, spect, heads=2)
+    beats = _logit_peaks(beat_logits)
+    return beats, _snap_downbeats(_logit_peaks(bar_logits), beats)
+
+
+def _logit_peaks(logits: np.ndarray) -> np.ndarray:
+    """The frames where a head's logit peaks above 0 (within 3 frames each
+    way), adjacent peaks as their mean, in seconds."""
     padded = np.pad(logits, 3, constant_values=-1000.0)
     local_max = np.lib.stride_tricks.sliding_window_view(padded, 7).max(axis=1)
     frames = np.flatnonzero((logits == local_max) & (logits > 0))
@@ -768,7 +818,7 @@ def _beat_this_vote(analysis: Analysis, y: np.ndarray, sr: int) -> Analysis:
     if beats is not None:
         # the judge loads the same model: its later reads of this decode
         # (PHASE_BEAT_THIS, the octave checks) take these beats, not a second run
-        params._BEAT_THIS_HEARD[:] = [((id(y), int(y.size), int(sr)), y, beats)]
+        params._BEAT_THIS_HEARD[:] = [((id(y), int(y.size), int(sr)), y, beats, None)]
     if beats is None or beats.size < 8:
         return analysis
     duration = float(analysis.duration)

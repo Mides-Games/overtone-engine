@@ -185,10 +185,19 @@ def _evidence(analysis, points, duration: float) -> dict:
     return out
 
 
-def build_result(analysis, *, vote: bool, hash_: str) -> dict:
+def _heard(heard) -> dict | None:
+    """Beat This!'s beats and downbeats as the page draws them, or None."""
+    beats, downbeats = heard if heard else (None, None)
+    if beats is None or len(beats) == 0:
+        return None
+    return {"beats_ms": _ms(beats), "downbeats_ms": _ms(downbeats if downbeats is not None else [])}
+
+
+def build_result(analysis, *, vote: bool, hash_: str, heard=None) -> dict:
     """An analysis as ``timing-result v1``. Points are snapped exactly as the
     exporters snap them, so the table the site shows is what
-    ``osu_timing`` writes."""
+    ``osu_timing`` writes. ``heard`` is Beat This!'s ``(beats, downbeats)``
+    in seconds, drawn for the person timing by hand (``heard``, minor 3)."""
     points = [p for p in ta.snap_timing_points(list(analysis.points))
               if math.isfinite(p.bpm) and p.bpm > 0 and math.isfinite(p.offset_ms)]
     duration = float(analysis.duration)
@@ -242,6 +251,7 @@ def build_result(analysis, *, vote: bool, hash_: str) -> dict:
         **evidence,
         **asked(),
         "self_check": _self_check(analysis),
+        "heard": _heard(heard),
     }
 
 

@@ -243,6 +243,27 @@ class BeatThisTests(unittest.TestCase):
         # its beats come on a 50 fps grid: 0.5 s apart within a frame
         self.assertGreater(np.mean(np.abs(gaps - 0.5) <= 0.021), 0.9)
 
+    def test_its_downbeats_come_from_the_same_pass_and_sit_on_its_beats(self):
+        import soundfile as sf
+        y, sr = sf.read(str(self.click), dtype="float32")
+        beats, downbeats = self.ta._beat_this_beats(y, sr, downbeats=True)
+        np.testing.assert_array_equal(beats, self.ta._beat_this_beats(y, sr))
+        self.assertLessEqual(set(downbeats.tolist()), set(beats.tolist()))
+        # the judge's cache answers for the song it heard, downbeats included
+        self.ta._BEAT_THIS_HEARD.clear()
+        heard = self.ta._beat_this_judge_beats(y, sr)
+        again, bars = self.ta._beat_this_heard()
+        np.testing.assert_array_equal(again, heard)
+        np.testing.assert_array_equal(bars, downbeats)
+        self.ta._BEAT_THIS_HEARD.clear()
+        self.assertEqual(self.ta._beat_this_heard(), (None, None))
+
+    def test_a_downbeat_snaps_to_its_nearest_beat_or_is_dropped(self):
+        beats = np.array([1.0, 1.5, 2.0, 2.5])
+        snapped = self.ta._snap_downbeats(np.array([0.98, 1.97, 2.3, 2.02, 9.0]), beats)
+        self.assertEqual(snapped.tolist(), [1.0, 2.0])
+        self.assertEqual(self.ta._snap_downbeats(np.array([1.0]), np.zeros(0)).size, 0)
+
     def test_a_grid_the_engine_already_fits_keeps_its_lines(self):
         voted = analyze_audio(self.click)
         alone = analyze_audio(self.click, beat_vote=False)

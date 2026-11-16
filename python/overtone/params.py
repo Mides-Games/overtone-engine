@@ -773,6 +773,11 @@ BEAT_THIS_MELS = 128
 BEAT_THIS_BAND_HZ = (30.0, 11000.0)
 BEAT_THIS_CHUNK = 1500                 # frames per network call, as Beat This! runs it
 BEAT_THIS_BORDER = 6                   # frames discarded at each chunk edge
+#: A downbeat Beat This! hears moves to its nearest beat within this (s), as
+#: the network's own minimal post-processing does; one with none is dropped.
+#: Shown to the person timing by hand (``heard`` in the worker's result), never
+#: used by the engine's own choices.
+BEAT_THIS_DOWNBEAT_SNAP_S = 0.07
 _BEAT_THIS_SESSION: list = []          # [session] once loaded, [None] when unavailable
 _BEAT_THIS_JUDGE: list = []            # the octave judge's own, the vote's switch aside
 

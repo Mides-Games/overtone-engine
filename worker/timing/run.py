@@ -35,6 +35,22 @@ from timing.settings import (
     stems_timeout)  # noqa: E402
 
 
+def heard_beats(source: str | Path):
+    """Beat This!'s beats and downbeats (s) for the person timing by hand:
+    the ones the engine's judges already heard on this song, else one pass
+    on the decoded file. ``(None, None)`` without the model, and on any
+    failure: the timing never waits on what is only drawn beside it."""
+    try:
+        beats, downbeats = ta._beat_this_heard()
+        if beats is None:
+            y, sr = ta._load_audio(str(source), lambda _message: None)
+            beats, downbeats = ta._beat_this_heard(y, sr)
+        return beats, downbeats
+    except Exception as exc:  # noqa: BLE001 -- drawn evidence only
+        print(f"[worker] Beat This! beats for the page failed: {exc}", file=sys.stderr)
+        return None, None
+
+
 def analyse(path: str | Path, *, vote: bool, hash_: str,
             max_seconds: float | None = None,
             progress: Callable[[str, float], None] | None = None,
@@ -111,6 +127,7 @@ def analyse(path: str | Path, *, vote: bool, hash_: str,
                         params["min_confidence"], say, params["force_subdivision"], params["refine_beats"],
                         beat_vote=vote)
 
+            ta._BEAT_THIS_HEARD.clear()     # what is heard after this run is this song's
             try:
                 analysis = run(stems)
             except ta.SeparatorFailed as exc:
@@ -118,6 +135,7 @@ def analyse(path: str | Path, *, vote: bool, hash_: str,
                 print(f"[worker] drums separator failed, reading the mix: {exc}", file=sys.stderr)
                 stems, separator_failed = False, True
                 analysis = run(False)
+            heard = heard_beats(source)
         except ValueError as exc:
             return refuse(str(exc), seconds)
         except Exception as exc:  # noqa: BLE001 -- the job records why, the worker keeps going
@@ -137,7 +155,7 @@ def analyse(path: str | Path, *, vote: bool, hash_: str,
             below = str(analysis.meter).split("/")[1] if "/" in str(analysis.meter) else "4"
             analysis = replace(analysis, meter=f"{options['meter']}/{below}")
 
-    result = {**build_result(analysis, vote=vote, hash_=hash_), **asked(mode, options)}
+    result = {**build_result(analysis, vote=vote, hash_=hash_, heard=heard), **asked(mode, options)}
     if stretch is not None:
         result = shift_result(result, stretch["start_ms"])
         result["osu_timing"] = ta.osu_timing_text(_shifted(analysis, stretch["start_ms"]))

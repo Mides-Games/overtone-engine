@@ -20,6 +20,36 @@ version is `v1.0.0-stable` (2026-10-28).
 
 ---
 
+## Unreleased — 2026-11-16 · What Beat This! hears, sent to the page for timing by hand (timing-result v1.3)
+
+### Changed
+
+- The worker's result carries `heard`: Beat This!'s own beats and downbeats, in ms
+  (`beats_ms`, `downbeats_ms`), or null where the model is not installed. The network
+  always had a downbeat head; the engine read only the beat head. Both now come from the
+  same pass (`_beat_this_logits(..., heads=2)`), each downbeat on its nearest beat within
+  70 ms as the network's own minimal post-processing does (`BEAT_THIS_DOWNBEAT_SNAP_S`).
+  The site can draw them beside the grid's own bar lines, in another colour, so the person
+  timing a song by hand sees where the network hears the bar start. The engine's choices
+  do not read the downbeats: nothing it writes changes.
+- The judge's cache keeps the downbeats with the beats, so a song the judges already asked
+  about costs no second pass; a song they did not costs one more pass on the decoded file
+  (`timing.run.heard_beats`), and any failure there leaves `heard` null instead of failing
+  the job.
+- `minor` 2 → 3; `shift_result` moves `heard` with the rest for a stretch.
+
+### Measured
+
+- Three local songs through `timing_result.analyse`, each twice with `heard` and twice
+  without, interleaved: 17.3 / 16.7 vs 19.8 / 18.0 s, 18.3 / 17.7 vs 19.8 / 17.8 s,
+  20.1 / 21.8 vs 20.7 / 19.9 s. No cost beyond this PC's spread: the judges had heard
+  each song, and the downbeat head rides on their pass. One cold call with nothing cached
+  (model load, decode, inference) took 14.4 s.
+- How well the network's downbeats match a ranked map's bars: not measured. They are
+  shown as evidence for a person, not used to place a line.
+
+---
+
 ## Unreleased — 2026-11-15 · The one-line phase and the attack-rise lead re-tuned: nothing to change
 
 No engine change. The knobs of the one-line phase (2026-11-09) and the attack-rise lead

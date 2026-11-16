@@ -19,8 +19,11 @@ VERSION = 1
 #: evidence the result page draws (``beats``, ``downbeats_ms``, ``onsets``,
 #: ``onset_envelope``, per-section drift, ``swing``, ``pulse_hints``); ``minor``
 #: 2 adds how the analysis was asked for (W11.1, W3.21, W12.19): ``mode``,
-#: ``options``, ``hint_checks`` and ``stretch``. Nothing in a v1 field changes.
-MINOR = 2
+#: ``options``, ``hint_checks`` and ``stretch``; ``minor`` 3 adds ``heard``,
+#: Beat This!'s own beats and downbeats (``beats_ms``, ``downbeats_ms``, or
+#: null without the model), drawn beside the grid for timing by hand. Nothing
+#: in a v1 field changes.
+MINOR = 3
 
 #: The engine generation the site's ``analyses.engine`` column records.
 ENGINE = "v3"

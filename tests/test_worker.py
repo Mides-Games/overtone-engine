@@ -157,8 +157,13 @@ class ResultOnAudioTests(unittest.TestCase):
         json.dumps(result)  # plain JSON all the way down
 
         # v1.1: still a v1 for every v1 reader, plus the evidence the page draws;
-        # v1.2: how it was asked for, which by default is as it always was.
-        self.assertEqual((result["version"], result["minor"]), (1, 2))
+        # v1.2: how it was asked for, which by default is as it always was;
+        # v1.3: what Beat This! hears, or null where the model is not installed.
+        self.assertEqual((result["version"], result["minor"]), (1, 3))
+        heard = result["heard"]
+        if heard is not None:
+            self.assertEqual(heard["beats_ms"], sorted(heard["beats_ms"]))
+            self.assertLessEqual(set(heard["downbeats_ms"]), set(heard["beats_ms"]))
         self.assertEqual((result["mode"], result["options"], result["hint_checks"], result["stretch"]),
                          ("normal", {}, [], None))
         beats = result["beats"]
@@ -681,6 +686,7 @@ class ResultPartsTests(unittest.TestCase):
                   "downbeats_ms": [10], "onset_envelope": {"span_ms": 40, "v": [1]},
                   "swing": {"measured": 0, "swung": 0, "spans": [{"start_ms": 10, "end_ms": 20}]},
                   "pulse_hints": [{"from_ms": 10, "to_ms": 20, "boundary_ms": 15}],
+                  "heard": {"beats_ms": [10, 20], "downbeats_ms": [10]},
                   "self_check": {"verdict": "look", "look": {"index": 0, "start_s": 0.01, "end_s": 0.05,
                                                              "reason": "drift"},
                                  "sections": [{"index": 0, "start_s": 0.01, "end_s": 0.05}]}}
@@ -694,6 +700,7 @@ class ResultPartsTests(unittest.TestCase):
         self.assertEqual(moved["beats"]["t_ms"], [1010, 1020])
         self.assertEqual(moved["onsets"]["t_ms"], [1012])
         self.assertEqual(moved["downbeats_ms"], [1010])
+        self.assertEqual(moved["heard"], {"beats_ms": [1010, 1020], "downbeats_ms": [1010]})
         self.assertEqual(moved["onset_envelope"]["start_ms"], 1000)
         self.assertEqual(moved["swing"]["spans"][0], {"start_ms": 1010, "end_ms": 1020})
         self.assertEqual(moved["pulse_hints"][0], {"from_ms": 1010, "to_ms": 1020, "boundary_ms": 1016})
@@ -794,7 +801,7 @@ class TwoEnginesOneSchemaTests(unittest.TestCase):
         # for the v1.1 evidence the result page draws. v1.0 is what both share.
         self.assertNotIn("minor", v4)
         for key in ("minor", "beats", "downbeats_ms", "onsets", "onset_envelope", "swing", "pulse_hints",
-                    "mode", "options", "hint_checks", "stretch", "self_check"):
+                    "mode", "options", "hint_checks", "stretch", "self_check", "heard"):
             v3.pop(key)
         for section in v3["sections"]:
             for key in ("drift_ms", "drift_p90_ms", "drift_bias_ms", "onsets"):

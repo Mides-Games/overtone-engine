@@ -42,9 +42,22 @@ main() {
     export GIT_LFS_SKIP_SMUDGE=1
     mkdir -p .overtone
 
-    AUTH=()
+# git with the token's header when there is one, else plain git.
+gitauth() {
+    if [ -n "${AUTH_HEADER:-}" ]; then
+        GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="$AUTH_HEADER" git "$@"
+    else
+        git "$@"
+    fi
+}
+
+
+    AUTH_HEADER=
     if [ -n "${GIT_TOKEN:-}" ]; then
-        AUTH=(-c "http.extraHeader=Authorization: Basic $(printf 'x-access-token:%s' "$GIT_TOKEN" | base64 -w0)")
+        # Through git's environment (GIT_CONFIG_*), never its command line: argv is
+    # readable by every user of the host (ps, /proc/<pid>/cmdline); a process's
+    # environment only by its own user and root (2026-11-17).
+    AUTH_HEADER="Authorization: Basic $(printf 'x-access-token:%s' "$GIT_TOKEN" | base64 -w0)"
     fi
 
     if [ -d .git ] && [ "${USER_UPLOAD:-0}" != 1 ]; then
@@ -62,7 +75,7 @@ main() {
         return 1
     fi
     # The token is for git alone, and git is done with it but for the model's
-    # LFS pull, which reads AUTH (built above, never exported). Nothing the
+    # LFS pull, which reads AUTH_HEADER (built above, never exported). Nothing the
     # server runs from here (pnpm, pip, node, python) inherits it.
     unset GIT_TOKEN
 
@@ -120,7 +133,7 @@ place() {
 }
 
 update() {
-    if ! git "${AUTH[@]}" fetch --quiet origin "$BRANCH"; then
+    if ! gitauth fetch --quiet origin "$BRANCH"; then
         say "could not reach $(git remote get-url origin); starting $(revision) as it is"
         return 0
     fi
@@ -133,7 +146,7 @@ update() {
         # is now only in an archive tag (refs/tags/history/*) was published,
         # so a clean checkout moves to the new history. A commit made on the
         # server is in no archive and is left alone, as before.
-        git "${AUTH[@]}" fetch --quiet origin "+refs/tags/history/*:refs/tags/history/*" 2>/dev/null || true
+        gitauth fetch --quiet origin "+refs/tags/history/*:refs/tags/history/*" 2>/dev/null || true
         if [ -n "$(git tag --list 'history/*' --contains "$old")" ] && git diff --quiet HEAD --; then
             git reset --quiet --hard "$new" || return 0
             say "$BRANCH was rewritten; moved from the archived $(git rev-parse --short "$old") to $(git rev-parse --short "$new")"
@@ -181,7 +194,7 @@ prepare_worker() {
         head -c 40 "$m" | grep -q '^version https://git-lfs' || continue
         if [ -d .git ] && command -v git-lfs >/dev/null; then
             say "fetching the Beat This! model (Git LFS)"
-            git "${AUTH[@]}" lfs pull || return 1
+            gitauth lfs pull || return 1
         fi
         if head -c 40 "$m" | grep -q '^version https://git-lfs'; then
             say "ERROR: $m is an LFS pointer, not the model. Reinstall the server to fetch it."

@@ -228,6 +228,8 @@ class ResultOnAudioTests(unittest.TestCase):
             self.assertIs(result["beat_vote"], False)
             self.assertEqual(result["mode"], "fast")
             self.assertEqual(asked, [])
+            # No pass for the page either: fast is priced for running no network at all.
+            self.assertIsNone(result["heard"])
             self.assertEqual([round(line["bpm"], 2) for line in result["red_lines"]], [128.0, 142.0])
             # Put back after the job, whatever the mode switched.
             self.assertIs(tr.ta._beat_this_judge_beats, spy)
@@ -373,6 +375,26 @@ class MemoryReportTests(unittest.TestCase):
         api.claim("0123456789abcdef", None, {"rss_mb": 5, "peak_mb": None, "limit_mb": None})
         self.assertNotIn("memory", sent[0])
         self.assertEqual(sent[1]["memory"], {"rss_mb": 5, "peak_mb": None, "limit_mb": None})
+
+
+class StaleJobFolderTests(unittest.TestCase):
+    def test_a_job_folder_left_by_a_killed_worker_goes_at_start_and_a_running_one_stays(self):
+        import main
+        with tempfile.TemporaryDirectory() as root:
+            old = Path(root) / "overtone-job-old"
+            old.mkdir()
+            (old / "input.mp3").write_bytes(b"audio")
+            stale = old.stat().st_mtime - 7 * 3600
+            os.utime(old, (stale, stale))
+            running = Path(root) / "overtone-job-now"
+            running.mkdir()
+            other = Path(root) / "someone-else-old"
+            other.mkdir()
+            os.utime(other, (stale, stale))
+            self.assertEqual(main.sweep_stale_jobs(root), 1)
+            self.assertFalse(old.exists())
+            self.assertTrue(running.exists())
+            self.assertTrue(other.exists())
 
 
 class IsolationTests(unittest.TestCase):

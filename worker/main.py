@@ -172,6 +172,24 @@ def exit_with_parent(pid: int) -> None:
     threading.Thread(target=watch, daemon=True, name="parent-watch").start()
 
 
+def sweep_stale_jobs(root: str | None = None, older_s: float = 6 * 3600) -> int:
+    """Deletes job folders a worker killed outright left behind (a power cut,
+    a SIGKILL: no ``finally`` ran), with the audio in them (ADR-W4). Only this
+    worker's own prefix, and only folders older than ``older_s``, so a second
+    worker on the host never loses the job it is running. How many went."""
+    root = root or tempfile.gettempdir()
+    now = time.time()
+    gone = 0
+    for folder in Path(root).glob("overtone-job-*"):
+        try:
+            if folder.is_dir() and now - folder.stat().st_mtime > older_s:
+                shutil.rmtree(folder, ignore_errors=True)
+                gone += 1
+        except OSError:
+            pass
+    return gone
+
+
 def main() -> int:
     base = os.environ.get("OVERTONE_API", "http://127.0.0.1:3001")
     token = os.environ.get("WORKER_TOKEN", "").strip()
@@ -183,6 +201,9 @@ def main() -> int:
         poll = max(0.2, float(os.environ.get("WORKER_POLL_S", "2")))
     except ValueError:
         poll = 2.0
+
+    if (gone := sweep_stale_jobs()):
+        print(f"[worker] removed {gone} job folder(s) a stopped worker left behind", file=sys.stderr)
 
     parent = os.environ.get("WORKER_PARENT_PID", "").strip()
     if parent.isdigit():

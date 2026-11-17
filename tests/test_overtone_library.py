@@ -913,9 +913,11 @@ class LibraryServerTests(unittest.TestCase):
         port = self._serve(logins=logins)
         form = {"Content-Type": "application/x-www-form-urlencoded"}
 
-        def bearer(token):
+        def bearer(token, remote=True):
+            # From outside, through the proxy (Caddy adds X-Forwarded-For).
+            via = {"X-Forwarded-For": "203.0.113.9"} if remote else {}
             return self._request(port, "GET", "/api/status",
-                                 headers={"Authorization": f"Bearer {token}"})
+                                 headers={"Authorization": f"Bearer {token}", **via})
 
         started = time.monotonic()
         self.assertEqual(bearer("wrong")[0], 401)
@@ -934,6 +936,10 @@ class LibraryServerTests(unittest.TestCase):
         self.assertEqual(self._request(port, "GET", "/api/v1/whoami",
                                        headers={"Cookie": cookie})[0], 200)
         self.assertEqual(self._request(port, "GET", "/api/status")[0], 401)
+        # This machine's own caller, through no proxy (the updater), is never locked
+        # out by guesses from outside, and its own wrong token counts for nothing.
+        self.assertEqual(bearer("secret", remote=False)[0], 200)
+        self.assertEqual(bearer("wrong", remote=False)[0], 401)
         now[0] += 30
         self.assertEqual(bearer("secret")[0], 429)
         now[0] += 30

@@ -108,7 +108,7 @@ built or run**.
 ## Verification — run these before any commit that touches the engine
 
 ```bash
-.venv/Scripts/python.exe -m unittest discover -s tests   # all pass (713 on 2026-11-16)
+.venv/Scripts/python.exe -m unittest discover -s tests   # all pass (714 on 2026-11-17)
 .venv/Scripts/python.exe bench/benchmark.py                    # must be 24/24
 .venv/Scripts/python.exe bench/gates.py bpm-snapshot           # 24/24 readings unchanged
 .venv/Scripts/python.exe bench/golden.py check                 # 27/27 stage for stage

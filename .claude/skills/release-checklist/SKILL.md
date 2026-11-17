@@ -68,14 +68,20 @@ release gets it on the whole diff since the last release tag.
 ## The pull request
 
 Opened with `gh pr create`. `.github/pull_request_template.md` has the shape; the
-description answers three things:
+description answers four things:
 
-1. **What changed** and **why**, in one or two sentences each (the diff says how).
-2. **Checks run**, each command with its numbers pasted (`109/109`, `72 passed`,
+1. **Changelog**, public: a `feature`, `fix` or `perf` PR's title and its
+   `## Changelog` section are posted on the website and in Discord as they are.
+   Plain words for players and mappers, never a route, a path, a host, a setting,
+   a token or a person (CLAUDE.md, "The public changelog says nothing sensitive").
+   The same goes for the timeline entry's `### Changed` bullets, which the
+   site's changelog page shows.
+2. **What changed** and **why**, in one or two sentences each (the diff says how).
+3. **Checks run**, each command with its numbers pasted (`109/109`, `72 passed`,
    `initial 148.8 kB`), never "all green". Say which checks did not apply and why
    (engine untouched: no gates), and what was not verified (a real phone, Safari, a real
    PostgreSQL, a real Mides sign-in).
-3. **The checklist**, ticked: one logical change per commit; checks green with numbers;
+4. **The checklist**, ticked: one logical change per commit; checks green with numbers;
    `bench/facts.py` clean; timeline entry; roadmap updated.
 
 Do not merge your own feature PR unless the owner said so; a release names the

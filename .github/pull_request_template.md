@@ -1,3 +1,11 @@
+## Changelog
+
+<!-- Public: a feature, fix or perf PR's title and this section are posted on the
+website and in the Discord server as they are. Plain words for players and
+mappers; never a route, a path, a host, a setting, a token or a person
+(CLAUDE.md, "The public changelog says nothing sensitive"). Leave it empty for
+a change no one sees. -->
+
 ## What changed
 
 <!-- One or two sentences; the diff already says how. -->

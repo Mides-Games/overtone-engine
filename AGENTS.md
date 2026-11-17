@@ -51,6 +51,42 @@ deploy. Their history up to the split is in this repository too. Mentions here o
   why, and which gates were run with what result. The checklist and the
   definition of done live in `docs/workflow.md`.
 
+## The public changelog says nothing sensitive (owner's rule, 2026-11-16)
+
+A merged pull request of type `feature`, `fix` or `perf`, in any of the three
+repositories, becomes a public changelog entry on the website and in the Discord
+server, with no one reviewing it. The site's changelog page also shows the
+`### Changed` bullets of `docs/timeline.md`'s latest entries. Everyone reads both,
+so they say **what changed for the people who use Overtone, never how it is
+built or run**.
+
+- **What is published.** The PR's **title** and its **`## Changelog`** section:
+  bullets for the Discord post, and paragraphs for the site. `## What changed`,
+  `## Why` and every other section are for the reviewers and are never published.
+  With no `## Changelog` section, the title's description stands alone.
+- **What is never published**, in a PR title, a `## Changelog` section or a
+  timeline `### Changed` bullet:
+  - routes and endpoints, new or old (`GET /x`, `/api/…`, staff, internal, admin
+    or hook paths, query strings), and file or folder paths;
+  - hosts, IPs, ports, server names and emails;
+  - setting and environment variable names, secrets, tokens, keys and ids;
+  - anything about a person (names, accounts, ids), and how moderation, security
+    or the staff tools work.
+
+  A public page or a Discord command may be named alone ("the statistics page",
+  `/help`).
+- **Write it for a player or a mapper.** Name the change in plain words: "The
+  statistics page charts the songs timed each day." Never: "`GET /stats` adds `daily`,
+  counted in `utils/metrics.js`." The technical detail goes in `## What changed`.
+- **The site enforces it too** (overtone-site `site/web/src/lib/public-text.js`):
+  - a title that names any of these makes no entry;
+  - a bullet or paragraph that names one is left out whole;
+  - the timeline's bullets are filtered the same way;
+  - entries already published are cleaned at the API's start, and their Discord
+    messages edited.
+
+  That filter is a safety net, not the rule: write the section clean.
+
 ## CI
 
 - **GitHub Actions deploys, and only deploys** (owner's decision, 2026-10-26). One

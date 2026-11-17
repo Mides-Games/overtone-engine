@@ -449,12 +449,18 @@ def make_handler(service: Service, token: str, log: bool = True,
             send one). None: a bearer header came while wrong tokens are
             being refused, so it was not checked (the reply is 429)."""
             given = (self.headers.get("Authorization") or "").encode()
+            # A connection from this machine that came through no proxy (the
+            # updater, a local tool) is never locked out by wrong tokens sent
+            # from outside, nor counted with them: spamming the public address
+            # froze every deploy (2026-11-17). Caddy always adds X-Forwarded-For.
+            local = self.client_address[0] in ("127.0.0.1", "::1") and not self.headers.get("X-Forwarded-For")
             if given:
-                if logins.retry_after():
+                if not local and logins.retry_after():
                     return None
                 if hmac.compare_digest(given, expected):
                     return True
-                logins.failed()
+                if not local:
+                    logins.failed()
             if service.sessions.valid(self._session()):
                 return method in ("GET", "HEAD") or self.headers.get("X-Overtone") == "1"
             return False

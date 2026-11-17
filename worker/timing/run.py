@@ -135,7 +135,8 @@ def analyse(path: str | Path, *, vote: bool, hash_: str,
                 print(f"[worker] drums separator failed, reading the mix: {exc}", file=sys.stderr)
                 stems, separator_failed = False, True
                 analysis = run(False)
-            heard = heard_beats(source)
+            # Fast mode runs no Beat This! pass (that is its price): none for the page either.
+            heard = heard_beats(source) if (MODE_SETTINGS[mode]["vote"] or MODE_SETTINGS[mode]["judges"]) else (None, None)
         except ValueError as exc:
             return refuse(str(exc), seconds)
         except Exception as exc:  # noqa: BLE001 -- the job records why, the worker keeps going

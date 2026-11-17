@@ -171,13 +171,25 @@ def _stems_drums_run(y: np.ndarray, sr: int) -> np.ndarray:
     with tempfile.TemporaryDirectory() as scratch:
         mix = os.path.join(scratch, "mix.wav")
         soundfile.write(mix, np.asarray(y, dtype=np.float32), sr, subtype="FLOAT")
-        done = subprocess.run([binary, "separate", mix, "--out", scratch, "--stems", "drums",
-                               "--model", model], capture_output=True,
-                              timeout=params.STEMSPLIT_TIMEOUT_S,
-                              creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        if done.returncode != 0:
-            detail = done.stderr.decode("utf-8", "replace").strip()[-300:]
-            raise SeparatorFailed(f"The separator failed (exit {done.returncode}): {detail}")
+        # A Popen kept in params._SEPARATOR_RUNNING while it runs, so the
+        # worker's analysis process can stop it when it is itself told to stop
+        # (worker/isolate.py `_stop_children`): run() would leave it orphaned.
+        process = subprocess.Popen([binary, "separate", mix, "--out", scratch, "--stems", "drums",
+                                    "--model", model], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        params._SEPARATOR_RUNNING.append(process)
+        try:
+            _out, err = process.communicate(timeout=params.STEMSPLIT_TIMEOUT_S)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            _out, err = process.communicate()
+            raise subprocess.TimeoutExpired(process.args, params.STEMSPLIT_TIMEOUT_S, output=_out, stderr=err)
+        finally:
+            if process in params._SEPARATOR_RUNNING:
+                params._SEPARATOR_RUNNING.remove(process)
+        if process.returncode != 0:
+            detail = err.decode("utf-8", "replace").strip()[-300:]
+            raise SeparatorFailed(f"The separator failed (exit {process.returncode}): {detail}")
         drums, _ = soundfile.read(os.path.join(scratch, "drums.wav"), dtype="float32", always_2d=True)
     out = drums.mean(axis=1)[: len(y)]
     peak = float(np.max(np.abs(out))) if out.size else 0.0

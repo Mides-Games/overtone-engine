@@ -60,12 +60,25 @@ if [ -z "${GIT_ADDRESS:-}" ]; then
     exit 1
 fi
 
+# git with the token's header when there is one, else plain git.
+gitauth() {
+    if [ -n "${AUTH_HEADER:-}" ]; then
+        GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="$AUTH_HEADER" git "$@"
+    else
+        git "$@"
+    fi
+}
+
+
 # The token travels in a header for each command and is never written to
 # .git/config: anyone who opens the server's file manager would read it there.
 # The address is printed; the token never is.
-AUTH=()
+AUTH_HEADER=
 if [ -n "${GIT_TOKEN:-}" ]; then
-    AUTH=(-c "http.extraHeader=Authorization: Basic $(printf 'x-access-token:%s' "$GIT_TOKEN" | base64 -w0)")
+    # Through git's environment (GIT_CONFIG_*), never its command line: argv is
+    # readable by every user of the host (ps, /proc/<pid>/cmdline); a process's
+    # environment only by its own user and root (2026-11-17).
+    AUTH_HEADER="Authorization: Basic $(printf 'x-access-token:%s' "$GIT_TOKEN" | base64 -w0)"
 fi
 # The files belong to the panel's user, and this script runs as root.
 git config --global --add safe.directory /mnt/server
@@ -75,7 +88,7 @@ export GIT_LFS_SKIP_SMUDGE=1
 if [ -d .git ]; then
     say "reinstall: switching the existing clone to $BRANCH"
     git remote set-url origin "$GIT_ADDRESS"
-    git "${AUTH[@]}" fetch --quiet origin "$BRANCH"
+    gitauth fetch --quiet origin "$BRANCH"
     if ! git diff --quiet HEAD --; then
         say "ERROR: tracked files were edited on the server:"
         git diff --stat HEAD -- | tail -n 20
@@ -88,7 +101,7 @@ elif [ -n "$(ls -A)" ]; then
     exit 1
 else
     say "cloning $GIT_ADDRESS ($BRANCH)"
-    git "${AUTH[@]}" clone --quiet --branch "$BRANCH" "$GIT_ADDRESS" .
+    gitauth clone --quiet --branch "$BRANCH" "$GIT_ADDRESS" .
 fi
 git branch --quiet --set-upstream-to "origin/$BRANCH" "$BRANCH"
 # A mode change (chmod +x in the file manager) is not a change worth keeping,
@@ -102,7 +115,7 @@ if [ "$ROLE" = worker ]; then
     mkdir -p .local/bin
     cp "$(command -v git-lfs)" .local/bin/git-lfs
     git lfs install --local >/dev/null
-    git "${AUTH[@]}" lfs pull
+    gitauth lfs pull
     for m in assets/models/*.onnx; do
         if head -c 40 "$m" | grep -q '^version https://git-lfs'; then
             say "ERROR: $m is still an LFS pointer after git lfs pull."

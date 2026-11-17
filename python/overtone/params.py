@@ -595,6 +595,10 @@ OCTAVE_CONTINUITY = False
 #: about one song up to four times, and each pass costs seconds.
 _BEAT_THIS_HEARD: list = []
 
+#: The separator processes running now (drum_signal), so the worker's analysis
+#: process can stop them when it is told to stop.
+_SEPARATOR_RUNNING: list = []
+
 
 #: The whole song read an octave off what Beat This! hears: mappers time slow
 #: songs at 80-100 and fast punk and metal at 240-260, where MAP_OCTAVE_RANGE

@@ -41,6 +41,7 @@ import multiprocessing
 import os
 import signal
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -209,6 +210,20 @@ def _self_test(tr, vote: bool, hash_: str) -> None:
         tr.analyse(path, vote=vote, hash_=hash_, max_seconds=60)
 
 
+def _stop_children(_signum, _frame) -> None:
+    """The analysis process told to stop: the separator it may be running is
+    stopped first (drum_signal's ``_RUNNING``), then this process leaves."""
+    try:
+        import overtone as ta
+        for process in list(getattr(ta, "_SEPARATOR_RUNNING", [])):
+            try:
+                process.kill()
+            except OSError:
+                pass
+    finally:
+        os._exit(143)
+
+
 def run_child(conn, threads: int | None, memory_mb: int, vote_wanted: bool | None, self_test: bool) -> None:
     """The child's whole life: warm up, then analyse on request. Its memory
     is watched from outside (Runner), not limited from inside.
@@ -223,6 +238,10 @@ def run_child(conn, threads: int | None, memory_mb: int, vote_wanted: bool | Non
     """
     # The panel's first ^C is for the worker: it lets the job in hand finish.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
+    # Stopped for its time or memory (the worker's terminate): the separator it
+    # may be running goes with it, never left working beside the next job.
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, _stop_children)
     limited = can_watch_memory(memory_mb)
     try:
         sys.path.insert(0, str(HERE))
@@ -251,6 +270,13 @@ def run_child(conn, threads: int | None, memory_mb: int, vote_wanted: bool | Non
         mode = request[3] if len(request) > 3 and request[3] in tr.MODES else tr.DEFAULT_MODE
         options = request[4] if len(request) > 4 else None
         conn.send(("length", tr.audio_seconds(path)))
+        # Every temporary file of this job (a stretch's cut, the separator's mix
+        # and drums) goes inside the job's own folder, which the worker deletes
+        # however the job ends: a child stopped for its time or memory runs no
+        # clean-up of its own, and the decoded audio stayed behind (ADR-W4).
+        scratch = os.path.join(os.path.dirname(os.path.abspath(path)), "tmp")
+        os.makedirs(scratch, exist_ok=True)
+        tempfile.tempdir = scratch
         try:
             result = tr.analyse(path, vote=vote, hash_=hashes[mode], max_seconds=max_seconds,
                                 mode=mode, options=options,

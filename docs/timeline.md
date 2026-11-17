@@ -20,6 +20,124 @@ version is `v1.0.0-stable` (2026-10-28).
 
 ---
 
+## Unreleased — 2026-11-17 · Security review of the site, the worker and the bot's new features
+
+The first review since 2026-10-27, at the owner's request ("make it as secure as
+possible"). It covered all five areas of overtone-site's `docs/security-review.md`, on
+master 0390037: uploads and the worker, the edge, identity and limits, data and privacy,
+deploy and dependencies. Four read-only reviewers probed the dev API and `serve.mjs` on
+their own ports. Every finding below was then confirmed (by a probe, or by a test that
+fails on the code before) and fixed in overtone-site #59, #63, #66 and #68 and this
+repository's #213. The other sessions' open pull requests got the same review
+(overtone-site #56-#62, overtone-bot #31-#33); their findings went to those sessions before
+any of them merges.
+
+### Changed
+
+- Private uploads and private profiles stay private in every shared list, in the Discord
+  server and in search.
+- Fast analyses run no beat-tracking network at all.
+
+### Fixed
+
+- **High: one upload froze the whole API.**
+  - A file's own tags were cleaned with a pattern that backtracked quadratically on a long
+    run of NULs. 120k of them held every request for 8 s through the dev API; the measured
+    worst case was 62 s, and an M4A's 8 MB block extrapolates to hours.
+  - Anyone without an account could do it, for about 4 tokens.
+  - Tag text is now cut to 1 kB before it is cleaned, cleaned linearly, and cut on whole
+    characters (overtone-site #63).
+- **Medium: a half emoji in a tag made the upload fail and left the received file in the
+  spool.** Nothing else ever counted or removed it, so repeated uploads filled the disk
+  until a restart. Text is now well formed before it is encoded, and a received file is
+  deleted on any failure before it is queued (#63).
+- **Medium: the day's usage named other people's uploads.**
+  - A visitor without an account saw the title and id of every upload from their address
+    that day, private ones included. That covers a household, school, carrier NAT or VPN
+    exit.
+  - Fix: the address's uploads are still counted, but only the visitor's own (their
+    anonymous cookie's) are named (#59).
+- **Medium: the Discord logs channel named private analyses and their uploaders.**
+  - The Discord server's staff read that channel, and they are not the site's staff.
+  - A private analysis is now logged with no song, file, id or owner, and nobody with a
+    private profile is named (#59).
+- **Medium: a moderator Mides removed kept the staff's tools for up to 30 days.**
+  - Mides' role is read only at a sign-in, and a session lasts 30 days.
+  - Staff tools now need a sign-in younger than `STAFF_FRESH_HOURS` (12); after that the
+    page asks the moderator to sign in again. Minting an API token, which survives sign-out,
+    asks for the same recent sign-in (#66).
+- **Medium: a worker's stopped job kept the decoded audio.**
+  - A job stopped for its time or memory ran no clean-up of its own. The stretch's cut and
+    the separator's mix and drums stayed in the system's temporary folder (against ADR-W4),
+    and the separator kept running beside the next job.
+  - A job's temporary files now live in its own folder, which the worker deletes however
+    the job ends. The analysis process stops its separator when it is told to stop, and
+    the worker clears folders a killed worker left behind (#213).
+- **Low:**
+  - The bot's recent-timings command named the account behind a private profile.
+  - The starboard named publishers with private profiles.
+  - Public search matched hidden file names, so it worked as a substring oracle on them.
+  - (All three #59.)
+  - Any moderator could grant themselves, or anyone, a rank or an open-ended plan, recorded
+    only in the server's log. Ranks and open-ended plans are now an admin's to give,
+    self-grants are refused, and every grant is an audit line (#66). The self-grant check
+    read the name as typed while the grant drops a leading `@`, so an admin could still
+    rank themselves as `@name`; the staff-pages session found it and its overtone-site #65
+    closes it.
+  - A cache lookup with cookies dropped each time made a new published copy per call,
+    titled as the caller chose (#63).
+  - An `.osz` entry name could carry `..\` from an uploader's title (#63).
+  - The worker's egg passed the git token on git's command line, which other local users
+    can read (#213 and #68).
+  - Spamming wrong tokens at the measurement server locked out its own updater and froze
+    deploys (#213).
+  - Fast mode ran one Beat This! pass for the page since #210 (#213).
+
+### Hardening
+
+All in overtone-site #68:
+
+- **Rate limits:** the rate limit runs before any body is read; signing out has a limit of
+  its own; card pictures are drawn at most 120 a minute across all addresses.
+- **Dev API:** it listens on this machine only while the dev sign-in is on.
+- **GitHub webhook:** each delivery is handled once per signed body (the delivery id is not
+  signed).
+- **Worker results:**
+  - Every evidence field of a result is checked for type and size.
+  - The timing text may hold only timing rows and comments, on the API and in the page's
+    own files.
+  - The audio stream cannot crash the API when its file goes.
+- **Static site and offline copy:**
+  - A missing built asset is a 404, not the app's page cached for a year.
+  - The CSP lets the upload page play its own file to read its length (until now it never
+    could).
+  - The offline copy never keeps a page meant for one timing or for framing.
+
+### Measured
+
+Each fix has a test that fails on the code before. The 62 s freeze above was measured
+through the dev API before the fix, and is gone after it.
+
+### Not fixed here (the owner's)
+
+- **Client address on the Mides host.** `serve.mjs` keeps the last two `X-Forwarded-For`
+  entries. Anyone who reaches nginx on the origin address directly, skipping Cloudflare,
+  chooses the address the rate limits count. nginx should accept only Cloudflare's ranges,
+  or set the client from `CF-Connecting-IP` with `real_ip` limited to them. The nginx
+  configuration is not in a repository.
+- **Sign-in CSRF.** The SSO nonce is not sent to Mides as `state`, so the server cannot tie
+  a returned code to the browser that asked for it. The browser's own note still guards
+  it. Closing it fully needs Mides to echo `state`.
+- **Production updater and units.** The root-owned updater and the `overtone-site-*`
+  systemd units on the Mides host are in neither repository, so whether root ever runs a
+  file `overtone` can write could not be checked.
+- **Product decisions:**
+  - Failed jobs are free (a timeout or a `too_heavy` costs nothing).
+  - Manual timing is gated only in the browser.
+  - Published timings show their publisher even with a private profile.
+
+---
+
 ## Unreleased — 2026-11-16 · The hidden-change check measured: it refuses the right songs, and nothing follows (roadmap 30.5)
 
 No engine change; `HIDDEN_CHANGE_CHECK` stays off. Real stage runs on the VPS with
